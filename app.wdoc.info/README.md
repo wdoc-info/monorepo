@@ -3,11 +3,10 @@
 The crew is tired of bowing to PDFs. This Angular 20 web app is our guerrilla reader for `.wdoc` archives—zipped HTML bundles meant to replace the old format and let us hack, remix, and ship documents without the heavy armor.
 
 ## Quick start (load the ammo)
-1. Clone the repo and pull the example payloads:
+1. Clone the repo:
    ```bash
    git clone <this repo>
    cd wdoc-webapp
-   git submodule update --init --recursive  # grab ./examples
    ```
 2. Install dependencies (Node 20+ recommended):
    ```bash
@@ -62,13 +61,6 @@ Get the numbers before shipping more ammo:
 npm test -- --code-coverage
 ```
 Open `coverage/index.html` (or the generated project folder under `coverage/`) to inspect the report.
-
-## Working with the example docs
-The `examples/` directory is a git submodule. Initialize or refresh it whenever you clone:
-```bash
-git submodule update --init --recursive
-```
-Point the viewer at those `.wdoc` files to demo the app or to debug new behaviors.
 
 ## More angular firepower
 Check the [Angular CLI documentation](https://angular.dev/tools/cli) for every command and option. When in doubt, we prototype fast, test hard, and keep iterating—because mighty PDF won’t overthrow itself.

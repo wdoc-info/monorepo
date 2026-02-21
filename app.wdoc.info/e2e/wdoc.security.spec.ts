@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import path from 'path';
 
-const examplesDir = path.resolve(__dirname, '../examples/security');
+const examplesDir = path.resolve(__dirname, '../../examples.wdoc.info/security');
 
 async function loadExample(page: Page, name: string) {
   const wdoc = path.join(examplesDir, `${name}.wdoc`);
