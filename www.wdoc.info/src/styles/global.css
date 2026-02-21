@@ -1,0 +1,17 @@
+@import 'tailwindcss';
+@plugin "@tailwindcss/typography";
+
+@theme {
+  /* Colors → gives you bg-primary, text-primary, bg-background-light, etc. */
+  --color-primary: #4b2bee;
+  --color-background-light: #ffffff;
+
+  /* Font family → gives you font-display */
+  --font-display: 'Inter', system-ui, sans-serif;
+
+  /* Radius → wired to rounded, rounded-lg, rounded-xl, rounded-full */
+  --radius-default: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-full: 9999px;
+}

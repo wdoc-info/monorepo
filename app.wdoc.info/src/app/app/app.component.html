@@ -1,0 +1,57 @@
+<mat-sidenav-container class="app-shell">
+  <mat-sidenav
+    class="app-sidenav"
+    [mode]="sidenavMode"
+    [opened]="isNavOpen"
+    (openedChange)="isNavOpen = $event"
+  >
+    <app-navbar
+      (fileSelected)="onFileSelected($event)"
+      [showSave]="showFormSave || showDocumentSave"
+      (save)="onSaveForms()"
+      (closeNav)="closeNav()"
+      (createNewDocument)="startNewDocument()"
+    ></app-navbar>
+  </mat-sidenav>
+
+  <mat-sidenav-content>
+    <div class="main-content">
+    <app-topbar
+        [showFormSave]="!isEditing && showFormSave"
+        [showDocumentSave]="isEditing && showDocumentSave"
+        [navOpen]="isNavOpen"
+        [title]="documentTitle"
+        [isEditing]="isEditing"
+        [zoom]="zoom"
+        [hasDocument]="!isEditing && !!htmlContent"
+        [attachments]="attachments"
+        [formAnswers]="formAnswers"
+        (toggleNav)="toggleNav()"
+        (saveForm)="onSaveForms()"
+        (saveDocument)="onSaveNewDocument()"
+        (editDocument)="startEditingLoadedDocument()"
+        (titleChange)="onDocumentTitleChange($event)"
+        (zoomChange)="onZoomChange($event)"
+      ></app-topbar>
+      @if (isEditing) {
+        <app-document-editor
+          [content]="editorContent"
+          (contentChange)="onEditorContentChange($event)"
+          (assetsChange)="onEditorAssetsChange($event)"
+        ></app-document-editor>
+      } @else {
+        <app-viewer
+          [htmlContent]="htmlContent"
+          [zoom]="zoom"
+          (formInteraction)="onFormInteraction()"
+        ></app-viewer>
+      }
+    </div>
+  </mat-sidenav-content>
+</mat-sidenav-container>
+
+@if (showDropOverlay) {
+  <div class="drop-overlay" aria-live="assertive">
+    <div class="drop-message">drop your wdoc or zip file here</div>
+  </div>
+}

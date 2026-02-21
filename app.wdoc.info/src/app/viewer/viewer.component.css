@@ -1,0 +1,10 @@
+wdoc-page {
+  transform-origin: top center;
+  transition: transform 0.12s ease-in-out;
+}
+
+@media print {
+  wdoc-page {
+    zoom: 1 !important;
+  }
+}

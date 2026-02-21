@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>wdoc - The Document Format, Reimagined</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+    </style>
+    <script id="tailwind-config">
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              primary: '#4b2bee',
+              'background-light': '#ffffff',
+            },
+            fontFamily: {
+              display: ['Inter', 'sans-serif'],
+            },
+            borderRadius: {
+              DEFAULT: '0.25rem',
+              lg: '0.5rem',
+              xl: '0.75rem',
+              full: '9999px',
+            },
+          },
+        },
+      };
+    </script>
+  </head>
+  <body class="font-display bg-background-light text-gray-800">
+    <div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+      <div class="layout-container flex h-full grow flex-col">
+        <header class="sticky top-0 z-50 w-full bg-background-light/80 backdrop-blur-sm">
+          <div class="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+            <div
+              class="flex items-center justify-between whitespace-nowrap border-b border-solid border-gray-200 py-4"
+            >
+              <div class="flex items-center gap-4">
+                <div class="size-6 text-primary"><img src="assets/logo.png" alt="logo wdoc" /></div>
+                <h2 class="text-gray-900 text-lg font-bold leading-tight tracking-[-0.015em]">
+                  WDOC
+                </h2>
+              </div>
+              <nav class="hidden md:flex items-center gap-9">
+                <a
+                  class="text-gray-600 hover:text-primary text-sm font-medium leading-normal"
+                  href="https://app.wdoc.info"
+                  >web App</a
+                >
+                <!-- <a
+                  class="text-gray-600 hover:text-primary text-sm font-medium leading-normal"
+                  href="blog/"
+                  >Blog</a
+                > -->
+              </nav>
+              <div class="flex items-center gap-4">
+                <a
+                  href="https://app.wdoc.info"
+                  class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                >
+                  <span class="truncate">Get Started</span>
+                </a>
+                <button class="md:hidden p-2 rounded-lg hover:bg-gray-200">
+                  <span class="material-symbols-outlined text-gray-800">menu</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+        <main class="flex flex-col items-center">
+          <section class="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center">
+            <div class="flex flex-col items-center gap-6">
+              <h1
+                class="text-gray-900 text-4xl sm:text-5xl md:text-6xl font-black leading-tight tracking-tighter"
+              >
+                The Document Format, Reimagined.
+              </h1>
+              <h2 class="text-gray-600 text-lg sm:text-xl font-normal leading-normal max-w-3xl">
+                Developer-friendly, interactive, and secure. The modern replacement for PDF.
+              </h2>
+              <!-- <button
+                class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+              >
+                <span class="truncate">Explore the Spec</span>
+              </button> -->
+            </div>
+          </section>
+          <section class="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+              <div class="flex flex-col gap-6">
+                <div class="flex items-center gap-4">
+                  <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-primary">psychology</span>
+                  </div>
+                  <h3
+                    class="text-gray-900 tracking-light text-3xl font-bold leading-tight sm:text-4xl"
+                  >
+                    Seamlessly Parsed by AI
+                  </h3>
+                </div>
+                <p class="text-gray-600 text-base font-normal leading-relaxed">
+                  The structured, non-binary nature of wdoc makes it incredibly easy for AI and
+                  scripts to read, understand, and extract data without complex parsing.
+                </p>
+                <!-- <button
+                  class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-fit hover:bg-primary/90 transition-colors"
+                >
+                  <span class="truncate">Learn More</span>
+                </button> -->
+              </div>
+              <div
+                class="w-full bg-gray-100 rounded-xl p-2 aspect-video flex items-center justify-center border border-gray-200"
+              >
+                <img
+                  class="w-full h-full object-cover rounded-lg"
+                  data-alt="basic wdoc index.html example"
+                  src="assets/code.png"
+                />
+              </div>
+            </div>
+          </section>
+          <section class="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+              <div
+                class="w-full bg-gray-100 rounded-xl p-2 aspect-video flex items-center justify-center lg:order-last border border-gray-200"
+              >
+                <img
+                  class="w-full h-full object-cover rounded-lg"
+                  data-alt="An interactive mockup of a form within a document frame. Users can see fields being filled and an 'Attach ID' button that simulates a file upload."
+                  src="assets/form.png"
+                />
+              </div>
+              <div class="flex flex-col gap-6">
+                <div class="flex items-center gap-4">
+                  <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-primary">edit_document</span>
+                  </div>
+                  <h3
+                    class="text-gray-900 tracking-light text-3xl font-bold leading-tight sm:text-4xl"
+                  >
+                    Forms that Work for You
+                  </h3>
+                </div>
+                <p class="text-gray-600 text-base font-normal leading-relaxed">
+                  Fill forms directly within the document. Answers are saved locally, and you can
+                  even embed critical attachments like ID cards or supporting documents.
+                </p>
+                <!-- <button
+                  class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-fit hover:bg-primary/90 transition-colors"
+                >
+                  <span class="truncate">See it in Action</span>
+                </button> -->
+              </div>
+            </div>
+          </section>
+          <section class="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+              <div class="flex flex-col gap-6">
+                <div class="flex items-center gap-4">
+                  <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-primary">verified_user</span>
+                  </div>
+                  <h3
+                    class="text-gray-900 tracking-light text-3xl font-bold leading-tight sm:text-4xl"
+                  >
+                    Simple, Secure, Verifiable Signing
+                  </h3>
+                </div>
+                <p class="text-gray-600 text-base font-normal leading-relaxed">
+                  Utilize the built-in digital signature process, complete with email validation, to
+                  ensure every signature is secure and verifiable.
+                </p>
+                <!-- <button
+                  class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-fit hover:bg-primary/90 transition-colors"
+                >
+                  <span class="truncate">Learn More</span>
+                </button> -->
+              </div>
+              <div
+                class="w-full bg-gray-100 rounded-xl p-2 aspect-video flex items-center justify-center border border-gray-200"
+              >
+                <img
+                  class="w-full h-full object-cover rounded-lg"
+                  data-alt="A three-step infographic: 1. A finger clicking a 'Sign' button. 2. A mock email validation checkmark. 3. The document showing a 'Signed &amp; Verified' stamp."
+                  src="assets/secure.png"
+                />
+              </div>
+            </div>
+          </section>
+          <section class="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+              <div
+                class="w-full bg-gray-100 rounded-xl p-2 aspect-video flex items-center justify-center lg:order-last border border-gray-200"
+              >
+                <img
+                  class="w-full h-full object-cover rounded-lg"
+                  data-alt="A visual of a main document file with smaller icons for XLSX, PPTX, and MD files flowing into it, showing the container concept."
+                  src="assets/container.png"
+                />
+              </div>
+              <div class="flex flex-col gap-6">
+                <div class="flex items-center gap-4">
+                  <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <span class="material-symbols-outlined text-primary">inventory_2</span>
+                  </div>
+                  <h3
+                    class="text-gray-900 tracking-light text-3xl font-bold leading-tight sm:text-4xl"
+                  >
+                    More Than Just a Document
+                  </h3>
+                </div>
+                <p class="text-gray-600 text-base font-normal leading-relaxed">
+                  wdoc acts as a container, holding related files like spreadsheets, presentations,
+                  or technical documentation, keeping all your project assets in one place.
+                </p>
+                <!-- <button
+                  class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] w-fit hover:bg-primary/90 transition-colors"
+                >
+                  <span class="truncate">Explore Use Cases</span>
+                </button> -->
+              </div>
+            </div>
+          </section>
+          <section class="w-full border-t border-gray-200 bg-gray-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center">
+              <div class="flex flex-col items-center gap-6">
+                <h2
+                  class="text-gray-900 text-3xl sm:text-4xl font-bold leading-tight tracking-tight"
+                >
+                  Ready to Build with wdoc?
+                </h2>
+                <p class="text-gray-600 text-lg font-normal leading-normal max-w-2xl">
+                  Take the next step and see how wdoc can revolutionize your document workflows.
+                  Dive into the documentation or download examples to get started.
+                </p>
+                <div
+                  class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4 w-full"
+                >
+                  <a
+                    href="https://app.wdoc.info"
+                    class="flex w-full sm:w-auto min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                  >
+                    <span class="truncate">Test the app</span>
+                  </a>
+                  <!-- <button
+                    class="flex w-full sm:w-auto min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-white text-gray-800 text-base font-bold leading-normal tracking-[0.015em] hover:bg-gray-200 transition-colors border border-gray-300"
+                  >
+                    <span class="truncate">Download Example Files</span>
+                  </button> -->
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

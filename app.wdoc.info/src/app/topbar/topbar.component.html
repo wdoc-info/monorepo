@@ -1,0 +1,133 @@
+<header class="topbar">
+  <button
+    type="button"
+    class="hamburger"
+    (click)="onToggleNav()"
+    aria-label="Toggle navigation"
+    [attr.aria-expanded]="navOpen"
+  >
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+  <div class="topbar-title">
+    @if (isEditing) {
+      <label class="visually-hidden" for="document-title-input">
+        Document title
+      </label>
+      <input
+        id="document-title-input"
+        type="text"
+        class="title-input"
+        [value]="title"
+        (input)="onTitleChange($event)"
+        placeholder="Untitled document"
+      />
+    } @else {
+      <div class="title-text" [attr.title]="title">{{ title }}</div>
+    }
+  </div>
+  <div class="topbar-actions">
+    @if (hasDocument) {
+      <div class="zoom-controls" aria-label="Zoom controls">
+        <button
+          type="button"
+          class="zoom-button"
+          (click)="onZoomStep(-10)"
+          aria-label="Zoom out"
+        >
+          −
+        </button>
+        <label class="zoom-input" aria-label="Zoom percentage">
+          <input
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]*"
+            [value]="zoomValue"
+            (input)="onZoomInput($event)"
+            (blur)="onZoomCommit()"
+            (keydown.enter)="onZoomCommit()"
+          />
+          <span>%</span>
+        </label>
+        <button
+          type="button"
+          class="zoom-button"
+          (click)="onZoomStep(10)"
+          aria-label="Zoom in"
+        >
+          +
+        </button>
+      </div>
+    }
+    @if (hasAttachmentData) {
+      <div class="attachments-wrapper" [class.open]="attachmentsMenuOpen">
+        <button
+          type="button"
+          class="attachments-button"
+          (click)="toggleAttachmentsMenu()"
+          aria-label="Show attachments"
+          aria-haspopup="true"
+          [attr.aria-expanded]="attachmentsMenuOpen"
+        >
+          Attachments
+        </button>
+        @if (attachmentsMenuOpen) {
+          <div class="attachments-dropdown" role="menu">
+            @if (attachments.length) {
+              <div class="attachments-section">
+                <div class="section-title">Attachment(s)</div>
+                <ul>
+                  @for (file of attachments; track file.name) {
+                    <li>
+                      <button type="button" (click)="downloadFile(file)">
+                        {{ file.name }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+            @if (formAnswers.length) {
+              <div class="attachments-section">
+                <div class="section-title">Form answers</div>
+                <ul>
+                  @for (file of formAnswers; track file.name) {
+                    <li>
+                      <button type="button" (click)="downloadFile(file)">
+                        {{ file.name }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+    <button
+      class="topbar-save"
+      type="button"
+      (click)="onSaveForm()"
+      [hidden]="!showFormSave"
+    >
+      Save form
+    </button>
+    @if (!isEditing && hasDocument) {
+      <button class="topbar-secondary" type="button" (click)="onEditDocument()">
+        Update document
+      </button>
+    }
+    @if (isEditing) {
+      <button
+        class="topbar-save"
+        type="button"
+        (click)="onSaveDocument()"
+        [hidden]="!showDocumentSave"
+      >
+        Save document
+      </button>
+    }
+  </div>
+</header>

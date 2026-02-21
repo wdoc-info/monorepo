@@ -1,0 +1,46 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# JavaScript/TypeScript dependencies (all subrepos)
+**/node_modules/
+
+# app.wdoc.info artifacts
+app.wdoc.info/dist/
+app.wdoc.info/tmp/
+app.wdoc.info/out-tsc/
+app.wdoc.info/bazel-out/
+app.wdoc.info/.angular/cache/
+app.wdoc.info/.sass-cache/
+app.wdoc.info/connect.lock
+app.wdoc.info/coverage/
+app.wdoc.info/libpeerconnection.log
+app.wdoc.info/testem.log
+app.wdoc.info/typings/
+app.wdoc.info/playwright-report/
+app.wdoc.info/test-results/
+app.wdoc.info/npm-debug.log
+app.wdoc.info/yarn-error.log
+app.wdoc.info/.history/
+app.wdoc.info/.vscode/*
+!app.wdoc.info/.vscode/settings.json
+!app.wdoc.info/.vscode/tasks.json
+!app.wdoc.info/.vscode/launch.json
+!app.wdoc.info/.vscode/extensions.json
+
+# backend.wdoc.info artifacts
+backend.wdoc.info/data/
+
+# www.wdoc.info artifacts
+www.wdoc.info/dist/
+www.wdoc.info/.astro/
+www.wdoc.info/npm-debug.log*
+www.wdoc.info/yarn-debug.log*
+www.wdoc.info/yarn-error.log*
+www.wdoc.info/pnpm-debug.log*
+www.wdoc.info/.env
+www.wdoc.info/.env.production
+www.wdoc.info/.idea/

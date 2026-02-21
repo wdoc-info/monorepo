@@ -1,0 +1,24 @@
+@import '@angular/material/prebuilt-themes/indigo-pink.css';
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+@media print {
+  html,
+  body {
+    height: auto;
+    min-height: auto;
+  }
+
+  body {
+    overflow: visible;
+  }
+}

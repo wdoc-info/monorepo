@@ -1,0 +1,95 @@
+---
+import "../styles/global.css";
+import Header from "../components/Header.astro";
+
+const { title, description, image } = Astro.props;
+
+// Fallbacks
+const pageTitle = title ?? "wdoc – The Document Format, Reimagined";
+const pageDescription =
+  description ??
+  "Developer-friendly, interactive, and secure. The modern replacement for PDF.";
+const pageImage = image ? new URL(image, Astro.site).href : "https://www.wdoc.info/assets/cover.png"; // must be absolute URL!
+const pageUrl = Astro.url.href;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={pageDescription} />
+
+    <!-- OpenGraph (Facebook, LinkedIn, Slack, etc.) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={pageDescription} />
+    <meta property="og:image" content={pageImage} />
+    <meta property="og:url" content={pageUrl} />
+    <meta property="og:site_name" content="wdoc" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={pageTitle} />
+    <meta name="twitter:description" content={pageDescription} />
+    <meta name="twitter:image" content={pageImage} />
+
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+    </style>
+  </head>
+  <body class="font-display bg-background-light text-gray-800">
+    <div class="relative flex min-h-screen w-full flex-col group/design-root overflow-x-hidden">
+      <div class="layout-container flex h-full grow flex-col">
+        <Header />
+
+        <main class="flex flex-col items-center">
+          <slot />
+          <section class="w-full border-t border-gray-200 bg-gray-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-28 text-center">
+              <div class="flex flex-col items-center gap-6">
+                <h2
+                  class="text-gray-900 text-3xl sm:text-4xl font-bold leading-tight tracking-tight"
+                >
+                  Ready to Build with wdoc?
+                </h2>
+                <p class="text-gray-600 text-lg font-normal leading-normal max-w-2xl">
+                  Take the next step and see how wdoc can revolutionize your document workflows.
+                  Dive into the documentation or download examples to get started.
+                </p>
+                <div
+                  class="flex flex-col sm:flex-row items-center justify-center gap-4 mt-4 w-full"
+                >
+                  <a
+                    href="https://app.wdoc.info"
+                    target="blank"
+                    class="flex w-full sm:w-auto min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-primary text-white text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+                  >
+                    <span class="truncate">Test the app</span>
+                  </a>
+                  <!-- <button
+                    class="flex w-full sm:w-auto min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-6 bg-white text-gray-800 text-base font-bold leading-normal tracking-[0.015em] hover:bg-gray-200 transition-colors border border-gray-300"
+                  >
+                    <span class="truncate">Download Example Files</span>
+                  </button> -->
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

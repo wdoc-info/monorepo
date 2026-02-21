@@ -1,0 +1,56 @@
+---
+const { current } = Astro.props;
+---
+
+<header class="sticky top-0 z-50 w-full bg-background-light/80 backdrop-blur-sm">
+  <div class="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div
+      class="flex items-center justify-between whitespace-nowrap border-b border-solid border-gray-200 py-4"
+    >
+      <div class="flex items-center gap-4">
+        <div class="size-6 text-primary">
+          <a href="https://www.wdoc.info">
+          <img src="/assets/logo.png" alt="logo wdoc" />
+          </a>
+        </div>
+        <a href="https://www.wdoc.info">
+          <h2 class="text-gray-900 text-lg font-bold leading-tight tracking-[-0.015em]">
+            WDOC
+          </h2>
+        </a>
+      </div>
+
+      <nav class="hidden md:flex items-center gap-9">
+        <a
+          class="text-gray-600 hover:text-primary text-sm font-medium leading-normal"
+          href="https://app.wdoc.info"
+          target="blank"
+        >
+          web App
+        </a>
+
+        <a
+          class={`text-sm font-medium leading-normal ${
+            current === "blog" ? "text-primary" : "text-gray-600 hover:text-primary"
+          }`}
+          href="/blog/"
+        >
+          Blog
+        </a>
+
+      </nav>
+
+      <div class="flex items-center gap-4">
+        <a
+          href="https://app.wdoc.info"
+          class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors"
+        >
+          <span class="truncate">Get Started</span>
+        </a>
+        <button class="md:hidden p-2 rounded-lg hover:bg-gray-200">
+          <span class="material-symbols-outlined text-gray-800">menu</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</header>

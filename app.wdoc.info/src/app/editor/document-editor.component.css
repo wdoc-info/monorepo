@@ -1,0 +1,196 @@
+.editor-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  min-height: calc(100vh - 96px);
+}
+
+:host {
+  --page-width: 793.8px;
+  --page-height: 1122px;
+  --page-padding: 20px;
+}
+
+.editor-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #f8fafc;
+  padding: 12px;
+  margin: -12px -12px 0;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.06);
+}
+
+.editor-toolbar button {
+  border: 1px solid #d0d7de;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.editor-toolbar button:hover {
+  background: #eef2ff;
+}
+
+.editor-toolbar button.active {
+  background: #312e81;
+  color: #ffffff;
+  border-color: #312e81;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 4px;
+}
+
+.heading-group button {
+  min-width: 44px;
+}
+
+.toolbar-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d0d7de;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.toolbar-input input[type='file'] {
+  display: none;
+}
+
+.toolbar-input input[type='color'] {
+  width: 36px;
+  height: 32px;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  padding: 0;
+  background: #fff;
+  cursor: pointer;
+}
+
+.toolbar-input .muted {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.toolbar-input .primary {
+  background: #312e81;
+  color: #ffffff;
+  border-color: #312e81;
+}
+
+.editor-container {
+  background: transparent;
+  padding: 12px 0 0;
+  height: auto;
+  min-height: calc(100vh - 200px);
+}
+
+.editor-content {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.page-list {
+  position: relative;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: var(--page-width);
+}
+
+.page-shell {
+  position: relative;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+  width: var(--page-width);
+  min-height: var(--page-height);
+  padding: var(--page-padding);
+}
+
+.editor-surface {
+  width: 100%;
+  border: none;
+  line-height: 1.6;
+  font-size: 16px;
+  box-sizing: border-box;
+  margin: 0;
+  min-height: calc(var(--page-height) - var(--page-padding) * 2);
+}
+
+.editor-surface img,
+.editor-surface .editor-image {
+  display: block;
+  max-width: calc(var(--page-width) - var(--page-padding) * 2);
+  max-height: calc(var(--page-height) - var(--page-padding) * 2);
+  height: auto;
+  object-fit: contain;
+  cursor: pointer;
+}
+
+.image-size-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  position: sticky;
+  top: 72px;
+  z-index: 6;
+  align-self: flex-start;
+  margin-left: 4px;
+}
+
+.image-size-bar input[type='range'] {
+  accent-color: #312e81;
+}
+
+.image-size-label {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.image-size-value {
+  min-width: 42px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.editor-wrapper :focus-visible {
+  outline: none;
+}
+
+.ProseMirror,
+.ProseMirror-focused,
+.editor-wrapper .tiptap.ProseMirror:focus-visible {
+  outline: none !important;
+  box-shadow: none;
+}
+
+.editor-surface:focus-visible {
+  outline: none !important;
+}

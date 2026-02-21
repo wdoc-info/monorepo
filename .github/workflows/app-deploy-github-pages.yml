@@ -1,0 +1,47 @@
+name: app.wdoc.info - Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - app.wdoc.info/**
+      - .github/workflows/app-deploy-github-pages.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app.wdoc.info
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: app.wdoc.info/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Angular wdocviewer
+        env:
+          SUPABASE_REDIRECT_URL: https://app.wdoc.info
+        run: npm run build -- --configuration=production --base-href="/"
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: app.wdoc.info/dist/wdocviewer/browser
+          cname: app.wdoc.info

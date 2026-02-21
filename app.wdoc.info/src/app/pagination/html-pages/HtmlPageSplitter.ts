@@ -1,0 +1,41 @@
+// Derived from @talers/html-pages v0.5.5 (https://www.npmjs.com/package/@talers/html-pages).
+import { splitHtmlToPages } from './splitHtmlToPages';
+import type { HtmlPageSplitterOptions } from './types';
+
+/**
+ * The `HtmlPageSplitter` class is used to split an HTML string into multiple pages.
+ */
+export class HtmlPageSplitter {
+  private controller = new AbortController();
+
+  constructor(public defaultOptions: HtmlPageSplitterOptions = {}) {}
+
+  /**
+   * Start the split process.
+   * This function is an async generator that yields one page at a time.
+   * This allow your first pages to be rendered very fast, even for large workloads.
+   * A good technique is to buffer every 10 pages before rendering them.
+   * @param html - The HTML string to split.
+   * @param options - The options to use for the split (will override the default options).
+   */
+  async *split(
+    html: string,
+    options: HtmlPageSplitterOptions = {},
+  ): AsyncGenerator<string> {
+    for await (const page of splitHtmlToPages(
+      html,
+      { ...this.defaultOptions, ...options },
+      this.controller.signal,
+    )) {
+      yield page;
+    }
+  }
+
+  /**
+   * Abort the split process.
+   * Use this when you started a long process (several thousands of pages), and the user navigates away.
+   */
+  abort() {
+    this.controller.abort();
+  }
+}

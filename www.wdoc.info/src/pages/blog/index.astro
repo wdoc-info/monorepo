@@ -1,0 +1,37 @@
+---
+import { glob } from 'astro:content'; 
+import Layout from "../../layouts/Layout.astro";
+
+const posts = Object.values(
+  import.meta.glob('./*.md', { eager: true })
+);
+---
+<Layout title="wdoc - The Document Format, Reimagined - blog" description="Latest updates on the wdoc format">
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <div class="flex flex-wrap justify-between items-center gap-6 p-4 mb-8">
+      <div class="flex flex-col gap-3">
+        <p class="text-gray-900  text-4xl font-black leading-tight tracking-tighter">Insights from the wdoc Team</p>
+        <p class="text-gray-500  text-lg font-normal leading-normal max-w-2xl">
+          Explore the latest on developer-friendly documents, AI integration, and the future of digital formats.
+        </p>
+      </div>
+    </div>
+
+    <div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        
+        {posts.map((post: any) => (
+          <a class="flex flex-col gap-4 group cursor-pointer" href={post.url}>
+            <div class="w-full bg-center bg-no-repeat aspect-video bg-cover rounded-xl overflow-hidden shadow-md transform group-hover:scale-[1.02] transition-transform duration-300" data-alt="Abstract digital network pattern" style={`background-image: url(${post.frontmatter.image});`}></div>
+            <div class="flex flex-col gap-2">
+              <p class="text-primary text-sm font-semibold">{post.frontmatter.title}</p>
+              <p class="text-gray-900 text-xl font-bold leading-snug group-hover:text-primary transition-colors">{post.frontmatter.description}</p>
+              <p class="text-gray-400 text-xs font-normal">{post.frontmatter.date}</p>
+            </div>
+          </a>
+        ))}
+
+    </div>
+  </div>
+</Layout>

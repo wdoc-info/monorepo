@@ -1,0 +1,29 @@
+{
+  "meta": {
+    "docTitle": "WDOC document",
+    "creator": "wdoc-webapp",
+    "creationDate": "2025-11-28T15:10:44.983Z",
+    "lastUpdateDate": "2025-11-28T15:10:44.983Z"
+  },
+  "content": {
+    "hashAlgorithm": "sha256",
+    "lastUpdateDate": "2025-11-28T15:10:44.983Z",
+    "files": {
+      "index.html": "8cae054c77c5bf92d17e15e88a93aecfe35413ef2b18d9aa7539ec25c0489709"
+    },
+    "contentDigest": "0e90556bcb2197f9e3062b0db7a6c794c2ff9a81aa7b8c0c4cc79b3286908010"
+  },
+  "runtime": {
+    "forms": {
+      "default": {
+        "hashAlgorithm": "sha256",
+        "lastUpdateDate": "2025-11-28T15:10:44.983Z",
+        "files": {
+          "wdoc-form/fight.jpeg": "69d21d9f48df001729853c5f598e051b2367c8336423424be8c2ba5b249e76f3",
+          "wdoc-form/login.json": "885eb094e7d87b671a33879d8b985b2db3e577ba44393e2f0d931dbac6091000"
+        },
+        "contentDigest": "d57708167856a57eb424f4793da480bb4c1b754924522dddac1b845fa3882ad9"
+      }
+    }
+  }
+}
