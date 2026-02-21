@@ -1,0 +1,27 @@
+{
+  "name": "wdoc",
+  "short_name": "wdoc",
+  "display": "standalone",
+  "scope": "./",
+  "start_url": "./",
+  "icons": [
+    {
+      "src": "/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/open-wdoc",
+      "accept": {
+        "application/x-wdoc": [".wdoc"]
+      }
+    }
+  ]
+}
