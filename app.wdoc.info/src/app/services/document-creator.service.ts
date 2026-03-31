@@ -105,6 +105,14 @@ export class DocumentCreatorService {
     .wdoc-document { font-family: ${DEFAULT_DOCUMENT_FONT_FAMILY}; margin: 32px; line-height: ${DEFAULT_DOCUMENT_LINE_HEIGHT}; word-break: normal; overflow-wrap: break-word; white-space: normal; }
     .wdoc-document h1, .wdoc-document h2, .wdoc-document h3, .wdoc-document h4 { margin-top: 1.6em; }
     .wdoc-document p { margin: 0.8em 0; }
+    .wdoc-document p:empty::before,
+    .wdoc-document li:empty::before,
+    .wdoc-document h1:empty::before,
+    .wdoc-document h2:empty::before,
+    .wdoc-document h3:empty::before,
+    .wdoc-document h4:empty::before,
+    .wdoc-document h5:empty::before,
+    .wdoc-document h6:empty::before { content: "\\200B"; }
   </style>
 </head>
 <body>

@@ -99,19 +99,27 @@ export class WdocLoaderService {
   private findIndexFile(zip: StreamedZip): StreamedZipEntry | null {
     let indexFile = zip.file('index.html');
     if (!indexFile) {
-      const folderNames = new Set<string>();
-      for (const entry of zip.entries()) {
-        if (entry.dir) {
-          const segments = entry.name.split('/').filter(Boolean);
-          if (segments.length === 1) {
-            folderNames.add(`${segments[0]}/`);
-          }
-        }
-      }
-      const firstFolder = Array.from(folderNames).sort()[0];
-      indexFile = firstFolder ? zip.file(`${firstFolder}index.html`) : null;
+      const nestedIndexEntry = zip
+        .entries()
+        .filter((entry) => !entry.dir)
+        .filter((entry) => !this.isNoiseFile(entry.name))
+        .filter((entry) => this.isIndexHtmlPath(entry.name))
+        .sort((a, b) => {
+          const depthDelta = this.getEntryDepth(a.name) - this.getEntryDepth(b.name);
+          return depthDelta !== 0 ? depthDelta : a.name.localeCompare(b.name);
+        })[0];
+      indexFile = nestedIndexEntry ?? null;
     }
     return indexFile ?? null;
+  }
+
+  private isIndexHtmlPath(path: string): boolean {
+    const normalized = path.replace(/^\/+/, '');
+    return normalized.split('/').pop()?.toLowerCase() === 'index.html';
+  }
+
+  private getEntryDepth(path: string): number {
+    return path.split('/').filter(Boolean).length;
   }
 
   private async verifyContentManifest(zip: StreamedZip): Promise<boolean> {

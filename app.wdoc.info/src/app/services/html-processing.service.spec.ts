@@ -199,6 +199,61 @@ describe('HtmlProcessingService', () => {
     expect(firstPage?.querySelector('wdoc-content')?.textContent).toContain('first');
   });
 
+  it('re-paginates exported wdoc-document wrappers into multiple pages', async () => {
+    const service = getService();
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const repeatedParagraphs = Array.from({ length: 180 }, (_, index) => `<p>line ${index}</p>`).join('');
+    const html =
+      '<html><head></head><body><div class="wdoc-document">' +
+      repeatedParagraphs +
+      '</div></body></html>';
+    const zip = new JSZip();
+
+    const promise = service.processHtml(zip, html);
+    httpMock.expectOne('assets/wdoc-styles.css').flush('');
+    const result = (await promise).html;
+    httpMock.verify();
+
+    const doc = parse(result);
+    const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+
+    expect(pages.length).toBeGreaterThan(1);
+    pages.forEach((page) => {
+      expect(page.querySelector(':scope > wdoc-content > .wdoc-document')).not.toBeNull();
+    });
+  });
+
+  it('fills pages by splitting oversized tables recursively', async () => {
+    const service = getService();
+    const httpMock = TestBed.inject(HttpTestingController);
+
+    const rows = Array.from(
+      { length: 120 },
+      (_, index) => `<tr><td style="padding: 12px 0;">Row ${index}</td></tr>`,
+    ).join('');
+    const html =
+      '<html><head></head><body><table style="width: 100%; border-collapse: collapse;"><tbody>' +
+      rows +
+      '</tbody></table></body></html>';
+    const zip = new JSZip();
+
+    const promise = service.processHtml(zip, html);
+    httpMock.expectOne('assets/wdoc-styles.css').flush('');
+    const result = (await promise).html;
+    httpMock.verify();
+
+    const doc = parse(result);
+    const pages = Array.from(doc.querySelectorAll('wdoc-page'));
+
+    expect(pages.length).toBeGreaterThan(1);
+    pages.forEach((page) => {
+      expect(page.querySelector('table')).not.toBeNull();
+    });
+    expect(pages[0].textContent).not.toContain('Row 119');
+    expect(pages[pages.length - 1].textContent).toContain('Row 119');
+  });
+
   it('replicates headers and footers across each page', async () => {
     const service = getService();
     const http = TestBed.inject(HttpClient);

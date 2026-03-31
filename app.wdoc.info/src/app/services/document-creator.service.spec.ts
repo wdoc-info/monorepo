@@ -63,6 +63,7 @@ describe('DocumentCreatorService', () => {
     expect(indexContent).toContain('.wdoc-document h1');
     expect(indexContent).toContain('"Inter", "Helvetica Neue", Arial, sans-serif');
     expect(indexContent).toContain('overflow-wrap: break-word');
+    expect(indexContent).toContain('p:empty::before');
     expect(indexContent.includes('body {')).toBeFalse();
   });
 

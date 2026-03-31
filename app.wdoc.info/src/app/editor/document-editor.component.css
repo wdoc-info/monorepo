@@ -155,6 +155,19 @@
   cursor: pointer;
 }
 
+.editor-surface table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 1em 0;
+}
+
+.editor-surface th,
+.editor-surface td {
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
 .image-size-bar {
   display: inline-flex;
   align-items: center;

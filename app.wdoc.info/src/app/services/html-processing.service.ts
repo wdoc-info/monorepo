@@ -256,6 +256,7 @@ export class HtmlProcessingService {
           : node.textContent ?? '',
       )
       .join('');
+    const pageWrapperTemplate = this.extractPageWrapperTemplate(contentNodes);
     contentNodes.forEach((node) => node.remove());
 
     const wdocContainer = doc.createElement('wdoc-container');
@@ -269,6 +270,7 @@ export class HtmlProcessingService {
         measurementRoot: this.paginationContainer,
       }),
       {
+        measurementRoot: this.paginationContainer,
         pageHeight: Math.max(1, this.measuredPageHeight),
         pagePadding: DEFAULT_PAGE_PADDING,
         pageWidth: DEFAULT_PAGE_WIDTH,
@@ -279,7 +281,9 @@ export class HtmlProcessingService {
 
     pages.forEach(({ html: pageHtml }) => {
       const page = doc.createElement('wdoc-page');
-      page.innerHTML = pageHtml;
+      page.innerHTML = pageWrapperTemplate
+        ? this.wrapPageHtml(pageWrapperTemplate, pageHtml)
+        : pageHtml;
       this.ensurePageContentContainer(page);
       wdocContainer.appendChild(page);
     });
@@ -389,6 +393,32 @@ export class HtmlProcessingService {
     document.body.appendChild(host);
     this.paginationHost = host;
     return container;
+  }
+
+  private extractPageWrapperTemplate(nodes: ChildNode[]): HTMLElement | null {
+    if (nodes.length !== 1) {
+      return null;
+    }
+
+    const onlyNode = nodes[0];
+    if (!(onlyNode instanceof HTMLElement)) {
+      return null;
+    }
+
+    if (
+      onlyNode.tagName.toLowerCase() !== 'div' ||
+      !onlyNode.classList.contains('wdoc-document')
+    ) {
+      return null;
+    }
+
+    return onlyNode.cloneNode(false) as HTMLElement;
+  }
+
+  private wrapPageHtml(template: HTMLElement, innerHtml: string): string {
+    const wrapper = template.cloneNode(false) as HTMLElement;
+    wrapper.innerHTML = innerHtml;
+    return wrapper.outerHTML;
   }
 
   private updateDocumentTitle(doc: Document, defaultTitle: string): string {

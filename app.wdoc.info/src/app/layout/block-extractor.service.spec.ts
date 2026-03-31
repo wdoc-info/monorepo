@@ -54,4 +54,21 @@ describe('BlockExtractorService', () => {
     expect(blocks[0].kind).toBe('raw-html-block');
     expect(blocks[0].atomic).toBeTrue();
   });
+
+  it('counts empty paragraphs as a visible blank line', () => {
+    const blocks = service.extractBlocksFromHtml(
+      '<p style="font-family: Arial; font-size: 16px; line-height: 20px; overflow-wrap: break-word; word-break: normal; white-space: normal;"></p>',
+      {
+        contentWidth: DEFAULT_PAGE_WIDTH - DEFAULT_PAGE_PADDING * 2,
+        defaultFont: DEFAULT_DOCUMENT_FONT,
+        defaultLineHeight: DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
+        measurementRoot,
+      },
+    );
+
+    expect(blocks.length).toBe(1);
+    expect(blocks[0].atomic).toBeTrue();
+    expect(blocks[0].kind).toBe('text-block');
+    expect(blocks[0].measuredHeight).toBeGreaterThanOrEqual(20);
+  });
 });

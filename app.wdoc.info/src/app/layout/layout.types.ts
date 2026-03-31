@@ -9,6 +9,7 @@ export type DocumentBlockKind =
   | 'raw-html-block';
 
 export interface PaginationConstraints {
+  measurementRoot?: HTMLElement;
   pageWidth: number;
   pageHeight: number;
   pagePadding: number;

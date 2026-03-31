@@ -16,7 +16,7 @@ import {
   ViewChildren,
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
-import { Editor } from '@tiptap/core';
+import { Editor, Node as TipTapNode } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Level } from '@tiptap/extension-heading';
 import Color from '@tiptap/extension-color';
@@ -38,6 +38,56 @@ export interface EditorAsset {
   path: string;
   file: File;
 }
+
+const createRawHtmlNode = (
+  html: string,
+  fallbackTagName: string,
+): HTMLElement => {
+  if (typeof document === 'undefined') {
+    return {} as HTMLElement;
+  }
+
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = html.trim();
+  return (
+    (wrapper.firstElementChild as HTMLElement | null) ??
+    document.createElement(fallbackTagName)
+  );
+};
+
+const RawTable = TipTapNode.create({
+  name: 'rawTable',
+  group: 'block',
+  atom: true,
+  isolating: true,
+  selectable: true,
+
+  addAttributes() {
+    return {
+      html: {
+        default: '',
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'table',
+        getAttrs: (element) => ({
+          html: (element as HTMLElement).outerHTML,
+        }),
+      },
+    ];
+  },
+
+  renderHTML({ node }) {
+    return createRawHtmlNode(
+      (node.attrs['html'] as string | undefined) ?? '',
+      'table',
+    );
+  },
+});
 
 @Component({
   selector: 'app-document-editor',
@@ -391,6 +441,7 @@ export class DocumentEditorComponent
     const pages = this.documentLayoutEngineService.paginateBlocks(
       blocks,
       {
+        measurementRoot: this.documentRef.body,
         pageHeight: this.pageHeight,
         pagePadding: this.pagePadding,
         pageWidth: this.pageWidth,
@@ -483,6 +534,7 @@ export class DocumentEditorComponent
             levels: this.headingLevels,
           },
         }),
+        RawTable,
         TextStyle,
         Color,
         Highlight.configure({ multicolor: true }),

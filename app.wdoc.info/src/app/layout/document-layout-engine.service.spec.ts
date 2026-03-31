@@ -35,6 +35,20 @@ describe('DocumentLayoutEngineService', () => {
     };
   };
 
+  const createAtomicRawBlock = (id: string, html: string, measuredHeight = 400): DocumentBlock => ({
+    atomic: true,
+    chromeHeight: measuredHeight,
+    font: '16px Arial',
+    html,
+    id,
+    kind: 'raw-html-block',
+    lineHeight: 20,
+    marginBottom: 0,
+    marginTop: 0,
+    measuredHeight,
+    whiteSpace: 'normal',
+  });
+
   it('paginates long text across multiple pages', () => {
     const pages = service.paginateBlocks(
       [createTextBlock('long', 'hello world '.repeat(120))],
@@ -82,6 +96,35 @@ describe('DocumentLayoutEngineService', () => {
     expect(pages[1].html).toContain('Heavy block');
   });
 
+  it('collapses adjacent paragraph margins instead of counting them twice', () => {
+    const paragraphBlock = (id: string): DocumentBlock => ({
+      atomic: true,
+      chromeHeight: 20,
+      font: '16px Arial',
+      html: `<p>Paragraph ${id}</p>`,
+      id,
+      kind: 'raw-html-block',
+      lineHeight: 20,
+      marginBottom: 16,
+      marginTop: 16,
+      measuredHeight: 20,
+      whiteSpace: 'normal',
+    });
+
+    const pages = service.paginateBlocks(
+      Array.from({ length: 8 }, (_, index) => paragraphBlock(`p-${index}`)),
+      {
+        pageHeight: 200,
+        pagePadding: 0,
+        pageWidth: 200,
+        reservedBottom: 0,
+        reservedTop: 0,
+      },
+    );
+
+    expect(pages[0].blocks.length).toBe(5);
+  });
+
   it('groups list items back into a single list container', () => {
     const pages = service.paginateBlocks(
       [
@@ -120,5 +163,62 @@ describe('DocumentLayoutEngineService', () => {
     expect(pages[0].html).toContain('start="3"');
     expect(pages[0].html).toContain('First item');
     expect(pages[0].html).toContain('Second item');
+  });
+
+  it('recursively splits oversized tables across multiple pages', () => {
+    const rows = Array.from(
+      { length: 24 },
+      (_, index) => `<tr><td style="padding: 6px 0;">Row ${index}</td></tr>`,
+    ).join('');
+    const block = createAtomicRawBlock(
+      'table',
+      `<table style="width: 100%; border-collapse: collapse;"><tbody>${rows}</tbody></table>`,
+      600,
+    );
+
+    const pages = service.paginateBlocks(
+      [block],
+      {
+        measurementRoot: document.body,
+        pageHeight: 140,
+        pagePadding: 0,
+        pageWidth: 240,
+        reservedBottom: 0,
+        reservedTop: 0,
+      },
+    );
+
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages[0].html).toContain('<table');
+    expect(pages[1].html).toContain('<table');
+    expect(pages[0].html).not.toContain('Row 23');
+    expect(pages[pages.length - 1].html).toContain('Row 23');
+  });
+
+  it('recursively splits oversized raw paragraphs when pretext is not used', () => {
+    const block = createAtomicRawBlock(
+      'paragraph',
+      '<p style="font-family: Arial; font-size: 16px; line-height: 20px; white-space: normal; overflow-wrap: break-word; word-break: normal;">' +
+        'hello world '.repeat(140) +
+        '</p>',
+      700,
+    );
+
+    const pages = service.paginateBlocks(
+      [block],
+      {
+        measurementRoot: document.body,
+        pageHeight: 120,
+        pagePadding: 0,
+        pageWidth: 220,
+        reservedBottom: 0,
+        reservedTop: 0,
+      },
+    );
+
+    expect(pages.length).toBeGreaterThan(1);
+    expect(pages[0].html).toContain('<p');
+    expect(pages[1].html).toContain('<p');
+    expect(pages[0].html).not.toContain('hello world '.repeat(140));
   });
 });

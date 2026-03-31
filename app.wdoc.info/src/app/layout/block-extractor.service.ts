@@ -111,8 +111,21 @@ export class BlockExtractorService {
       return this.extractListBlocks(element, options);
     }
 
+    if (this.isTransparentPaginationContainer(element)) {
+      return this.extractBlocksFromWrapper(element, options);
+    }
+
     const kind = this.detectKind(element);
     if (this.isTextCompatible(element) && this.matchesPretextPolicy(element)) {
+      if (this.isVisuallyEmptyTextBlock(element)) {
+        return [
+          this.buildEmptyTextBlock(
+            element,
+            kind,
+            options,
+          ),
+        ];
+      }
       return [this.buildTextBlock(element, kind, options)];
     }
 
@@ -195,7 +208,7 @@ export class BlockExtractorService {
       listMeta,
       marginBottom,
       marginTop,
-      measuredHeight: chromeHeight + metrics.height + marginTop + marginBottom,
+      measuredHeight: chromeHeight + metrics.height,
       text,
       whiteSpace,
     };
@@ -210,12 +223,11 @@ export class BlockExtractorService {
     const style = getComputedStyle(element);
     const marginTop = this.parsePixelValue(style.marginTop);
     const marginBottom = this.parsePixelValue(style.marginBottom);
-    const measuredHeight =
-      element.getBoundingClientRect().height + marginTop + marginBottom;
+    const measuredHeight = element.getBoundingClientRect().height;
 
     return {
       atomic: true,
-      chromeHeight: Math.max(0, measuredHeight - marginTop - marginBottom),
+      chromeHeight: measuredHeight,
       font: this.composeFontShorthand(style, options.defaultFont),
       html: element.outerHTML,
       id: this.nextBlockId(kind),
@@ -225,6 +237,41 @@ export class BlockExtractorService {
       marginBottom,
       marginTop,
       measuredHeight,
+      whiteSpace: this.resolveWhiteSpace(
+        style.whiteSpace,
+        options.fallbackWhiteSpace ?? 'normal',
+      ),
+    };
+  }
+
+  private buildEmptyTextBlock(
+    element: HTMLElement,
+    kind: DocumentBlockKind,
+    options: BlockExtractionOptions,
+    listMeta?: ListContainerMeta,
+  ): DocumentBlock {
+    const style = getComputedStyle(element);
+    const lineHeight = this.resolveLineHeight(style, options.defaultLineHeight);
+    const marginTop = this.parsePixelValue(style.marginTop);
+    const marginBottom = this.parsePixelValue(style.marginBottom);
+    const measuredHeight = Math.max(
+      element.getBoundingClientRect().height,
+      lineHeight,
+    );
+
+    return {
+      atomic: true,
+      chromeHeight: measuredHeight,
+      font: this.composeFontShorthand(style, options.defaultFont),
+      html: element.outerHTML,
+      id: this.nextBlockId(kind),
+      kind,
+      lineHeight,
+      listMeta,
+      marginBottom,
+      marginTop,
+      measuredHeight,
+      text: '',
       whiteSpace: this.resolveWhiteSpace(
         style.whiteSpace,
         options.fallbackWhiteSpace ?? 'normal',
@@ -274,6 +321,23 @@ export class BlockExtractorService {
     }
 
     return !this.hasUnsupportedDescendants(element);
+  }
+
+  private isTransparentPaginationContainer(element: HTMLElement): boolean {
+    if (
+      element.tagName.toLowerCase() !== 'div' ||
+      !element.classList.contains('wdoc-document')
+    ) {
+      return false;
+    }
+
+    return Array.from(element.childNodes).every((child) => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        return !(child.textContent ?? '').trim();
+      }
+
+      return child instanceof HTMLElement;
+    });
   }
 
   private hasUnsupportedDescendants(element: HTMLElement): boolean {
@@ -326,6 +390,11 @@ export class BlockExtractorService {
 
     Array.from(element.childNodes).forEach((child) => walk(child));
     return chunks.join('');
+  }
+
+  private isVisuallyEmptyTextBlock(element: HTMLElement): boolean {
+    const text = this.extractTextForLayout(element);
+    return text.replace(/\s+/g, '') === '';
   }
 
   private composeFontShorthand(

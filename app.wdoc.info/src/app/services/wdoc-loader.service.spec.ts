@@ -89,6 +89,23 @@ describe('WdocLoaderService', () => {
     expect(result?.formAnswers.length).toBe(0);
   });
 
+  it('ignores macOS metadata folders when locating a nested index file', async () => {
+    const zip = new JSZip();
+    zip.file('__MACOSX/._longtable', 'metadata');
+    zip.folder('longtable')!.file('index.html', '<html><body>Nested</body></html>');
+    zip.file('__MACOSX/longtable/._index.html', 'metadata');
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+    htmlProcessor.processHtml.and.resolveTo({
+      html: '<body>processed</body>',
+      documentTitle: 'Doc',
+    });
+
+    const result = await service.loadWdocFromArrayBuffer(buffer, 'WDOC viewer');
+
+    expect(htmlProcessor.processHtml).toHaveBeenCalled();
+    expect(result?.html).toContain('processed');
+  });
+
   it('alerts when no index file is present', async () => {
     const zip = new JSZip();
     zip.file('readme.txt', 'info');

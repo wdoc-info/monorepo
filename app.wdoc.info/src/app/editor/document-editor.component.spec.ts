@@ -44,6 +44,22 @@ describe('DocumentEditorComponent', () => {
     expect(component.editor?.getHTML()).toContain('Reset');
   });
 
+  it('preserves tables when loading HTML into the editor', async () => {
+    component.content =
+      '<table><tbody><tr><th>Test</th></tr><tr><td>1</td></tr><tr><td>2</td></tr></tbody></table>';
+    component.ngOnChanges({
+      content: new SimpleChange(undefined, component.content, false),
+    });
+
+    await settle();
+
+    const html = component.editor?.getHTML() ?? '';
+    expect(html).toContain('<table');
+    expect(html).toContain('<tbody');
+    expect(html).toContain('<th>Test</th>');
+    expect(component.pageContents.join('')).toContain('<table');
+  });
+
   it('exposes basic formatting commands', async () => {
     component.toggleBold();
     component.toggleItalic();
@@ -61,6 +77,20 @@ describe('DocumentEditorComponent', () => {
 
     await settle();
     expect(editor.getHTML()).toBe('<p></p>');
+  });
+
+  it('keeps an empty paragraph when pressing Enter in a new document', async () => {
+    const editor = component.editor!;
+    editor.options.onFocus?.({ editor } as any);
+    await settle();
+
+    editor.commands.insertContent('Hello');
+    editor.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+
+    const html = component.pageContents.join('');
+    expect(html).toContain('<p>Hello</p>');
+    expect(html).toContain('<p></p>');
   });
 
   it('paginates content when the available height is exceeded', async () => {
