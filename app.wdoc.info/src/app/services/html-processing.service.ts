@@ -3,13 +3,21 @@ import { HttpClient } from '@angular/common/http';
 import { lastValueFrom, firstValueFrom } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import DOMPurify from 'dompurify';
-import { HtmlPageSplitter } from '../pagination/html-pages/HtmlPageSplitter';
 import { FormManagerService } from './form-manager.service';
 import QRCode from 'qrcode';
 import { QRCodeToDataURLOptions } from 'qrcode';
 import JsBarcode from 'jsbarcode';
 import { ExternalImageDialogComponent } from './external-image-dialog.component';
 import { type ZipContainer } from './zip-reader';
+import {
+  DEFAULT_DOCUMENT_FONT,
+  DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
+  DEFAULT_PAGE_HEIGHT,
+  DEFAULT_PAGE_PADDING,
+  DEFAULT_PAGE_WIDTH,
+} from '../layout/layout.constants';
+import { BlockExtractorService } from '../layout/block-extractor.service';
+import { DocumentLayoutEngineService } from '../layout/document-layout-engine.service';
 
 interface ProcessHtmlOptions {
   defaultTitle?: string;
@@ -19,9 +27,9 @@ interface ProcessHtmlOptions {
 export class HtmlProcessingService {
   private paginationStyleEl?: HTMLStyleElement;
   private paginationHost?: HTMLElement;
-  private htmlPageSplitter?: HtmlPageSplitter;
   private paginationContainer?: HTMLElement;
   private objectUrls: string[] = [];
+  private measuredPageHeight = DEFAULT_PAGE_HEIGHT;
   private readonly barcodeTypes = new Set([
     'codabar',
     'code128',
@@ -42,15 +50,11 @@ export class HtmlProcessingService {
     private http: HttpClient,
     private formManagerService: FormManagerService,
     private dialog: MatDialog,
+    private blockExtractorService: BlockExtractorService,
+    private documentLayoutEngineService: DocumentLayoutEngineService,
   ) {
     if (typeof document !== 'undefined') {
       this.paginationContainer = this.createPaginationContainer();
-      if (this.paginationContainer) {
-        this.htmlPageSplitter = new HtmlPageSplitter({
-          container: this.paginationContainer,
-          pageHeight: 1122,
-        });
-      }
     }
   }
 
@@ -231,7 +235,7 @@ export class HtmlProcessingService {
   }
 
   paginateContent = async (doc: Document, reservedHeight = 0): Promise<void> => {
-    if (!this.htmlPageSplitter) {
+    if (!this.paginationContainer) {
       console.warn('HtmlPageSplitter is not available; skipping pagination.');
       return;
     }
@@ -245,40 +249,42 @@ export class HtmlProcessingService {
       return;
     }
 
-    const wrapper = doc.createElement('div');
-    contentNodes.forEach((node) => {
-      wrapper.appendChild(node.cloneNode(true));
-      node.remove();
-    });
+    const contentHtml = contentNodes
+      .map((node) =>
+        node.nodeType === Node.ELEMENT_NODE
+          ? (node as Element).outerHTML
+          : node.textContent ?? '',
+      )
+      .join('');
+    contentNodes.forEach((node) => node.remove());
 
     const wdocContainer = doc.createElement('wdoc-container');
     body.appendChild(wdocContainer);
 
-    let hasPages = false;
-    const adjustedHeight = Math.max(
-      1,
-      (this.htmlPageSplitter.defaultOptions.pageHeight ?? 1122) - Math.max(0, reservedHeight),
+    const pages = this.documentLayoutEngineService.paginateBlocks(
+      this.blockExtractorService.extractBlocksFromHtml(contentHtml, {
+        contentWidth: DEFAULT_PAGE_WIDTH - DEFAULT_PAGE_PADDING * 2,
+        defaultFont: DEFAULT_DOCUMENT_FONT,
+        defaultLineHeight: DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
+        measurementRoot: this.paginationContainer,
+      }),
+      {
+        pageHeight: Math.max(1, this.measuredPageHeight),
+        pagePadding: DEFAULT_PAGE_PADDING,
+        pageWidth: DEFAULT_PAGE_WIDTH,
+        reservedBottom: Math.max(0, reservedHeight),
+        reservedTop: 0,
+      },
     );
 
-    if (this.paginationContainer) {
-      this.paginationContainer.style.minHeight = `${adjustedHeight}px`;
-    }
-
-    for await (const pageHtml of this.htmlPageSplitter.split(wrapper.innerHTML, {
-      pageHeight: adjustedHeight,
-    })) {
-      const trimmed = pageHtml.trim();
-      if (!trimmed) {
-        continue;
-      }
+    pages.forEach(({ html: pageHtml }) => {
       const page = doc.createElement('wdoc-page');
       page.innerHTML = pageHtml;
       this.ensurePageContentContainer(page);
       wdocContainer.appendChild(page);
-      hasPages = true;
-    }
+    });
 
-    if (!hasPages) {
+    if (pages.length === 0) {
       const emptyPage = doc.createElement('wdoc-page');
       wdocContainer.appendChild(emptyPage);
     }
@@ -310,7 +316,6 @@ export class HtmlProcessingService {
     this.paginationHost = undefined;
     this.paginationContainer = undefined;
     this.paginationStyleEl = undefined;
-    this.htmlPageSplitter?.abort();
     this.objectUrls.forEach((url) => URL.revokeObjectURL(url));
     this.objectUrls = [];
   }
@@ -349,11 +354,7 @@ export class HtmlProcessingService {
       const measuredHeight = Math.ceil(probePage.getBoundingClientRect().height);
       this.paginationContainer.removeChild(probePage);
       if (measuredHeight > 0) {
-        this.htmlPageSplitter = new HtmlPageSplitter({
-          ...this.htmlPageSplitter?.defaultOptions,
-          container: this.paginationContainer,
-          pageHeight: measuredHeight,
-        });
+        this.measuredPageHeight = measuredHeight;
       }
     }
   }
@@ -369,10 +370,10 @@ export class HtmlProcessingService {
     host.style.pointerEvents = 'none';
     host.style.top = '0';
     host.style.left = '0';
-    host.style.width = '793.8px';
-    host.style.padding = '20px';
+    host.style.width = `${DEFAULT_PAGE_WIDTH}px`;
+    host.style.padding = `${DEFAULT_PAGE_PADDING}px`;
     host.style.boxSizing = 'border-box';
-    host.style.minHeight = '1122px';
+    host.style.minHeight = `${DEFAULT_PAGE_HEIGHT}px`;
     host.style.height = 'auto';
     host.style.overflow = 'visible';
     host.style.zIndex = '-1';

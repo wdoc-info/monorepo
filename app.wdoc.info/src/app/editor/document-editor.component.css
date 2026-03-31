@@ -10,6 +10,9 @@
 }
 
 :host {
+  --document-font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --document-font-size: 16px;
+  --document-line-height: 1.6;
   --page-width: 793.8px;
   --page-height: 1122px;
   --page-padding: 20px;
@@ -132,8 +135,11 @@
 .editor-surface {
   width: 100%;
   border: none;
-  line-height: 1.6;
-  font-size: 16px;
+  font-family: var(--document-font-family);
+  font-size: var(--document-font-size);
+  line-height: var(--document-line-height);
+  overflow-wrap: break-word;
+  word-break: normal;
   box-sizing: border-box;
   margin: 0;
   min-height: calc(var(--page-height) - var(--page-padding) * 2);

@@ -21,6 +21,7 @@
     "@angular/platform-browser-dynamic": "^20.3.13",
     "@angular/router": "^20.3.13",
     "@angular/service-worker": "^20.3.13",
+    "@chenglou/pretext": "^0.0.3",
     "@talers/html-pages": "^0.5.5",
     "@tiptap/core": "^3.11.1",
     "@tiptap/extension-color": "^3.13.0",

@@ -7,6 +7,10 @@ import {
   generateManifest,
   serializeManifest,
 } from './manifest-builder';
+import {
+  DEFAULT_DOCUMENT_FONT_FAMILY,
+  DEFAULT_DOCUMENT_LINE_HEIGHT,
+} from '../layout/layout.constants';
 
 export interface DocumentAsset {
   path: string;
@@ -98,7 +102,7 @@ export class DocumentCreatorService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${this.escapeHtml(title)}</title>
   <style>
-    .wdoc-document { font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; margin: 32px; line-height: 1.6; }
+    .wdoc-document { font-family: ${DEFAULT_DOCUMENT_FONT_FAMILY}; margin: 32px; line-height: ${DEFAULT_DOCUMENT_LINE_HEIGHT}; word-break: normal; overflow-wrap: break-word; white-space: normal; }
     .wdoc-document h1, .wdoc-document h2, .wdoc-document h3, .wdoc-document h4 { margin-top: 1.6em; }
     .wdoc-document p { margin: 0.8em 0; }
   </style>

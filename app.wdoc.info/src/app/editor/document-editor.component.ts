@@ -2,6 +2,7 @@ import {
   AfterViewInit,
   Component,
   CUSTOM_ELEMENTS_SCHEMA,
+  Inject,
   ElementRef,
   EventEmitter,
   Input,
@@ -14,7 +15,7 @@ import {
   ViewChild,
   ViewChildren,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Level } from '@tiptap/extension-heading';
@@ -22,6 +23,15 @@ import Color from '@tiptap/extension-color';
 import Highlight from '@tiptap/extension-highlight';
 import TipTapImage from '@tiptap/extension-image';
 import { TextStyle } from '@tiptap/extension-text-style';
+import {
+  DEFAULT_DOCUMENT_FONT,
+  DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
+  DEFAULT_PAGE_HEIGHT,
+  DEFAULT_PAGE_PADDING,
+  DEFAULT_PAGE_WIDTH,
+} from '../layout/layout.constants';
+import { BlockExtractorService } from '../layout/block-extractor.service';
+import { DocumentLayoutEngineService } from '../layout/document-layout-engine.service';
 
 export interface EditorAsset {
   objectUrl: string;
@@ -48,12 +58,11 @@ export class DocumentEditorComponent
 
   private editors: Editor[] = [];
   private pendingExternalUpdate = false;
-  pageHeight = 1122;
-  pageWidth = 793.8;
-  pagePadding = 20;
+  pageHeight = DEFAULT_PAGE_HEIGHT;
+  pageWidth = DEFAULT_PAGE_WIDTH;
+  pagePadding = DEFAULT_PAGE_PADDING;
   private pageGap = 20;
   pageContents: string[] = [];
-  private resizeObservers: ResizeObserver[] = [];
   private paginationRaf = 0;
   private placeholderCleared = false;
   private pendingSelectionOffset: number | null = null;
@@ -65,6 +74,12 @@ export class DocumentEditorComponent
   selectedImage: HTMLImageElement | null = null;
   selectedImageSize = 100;
   readonly headingLevels: Level[] = [1, 2, 3, 4, 5, 6];
+
+  constructor(
+    private blockExtractorService: BlockExtractorService,
+    private documentLayoutEngineService: DocumentLayoutEngineService,
+    @Inject(DOCUMENT) private documentRef: Document,
+  ) {}
 
   get editor(): Editor | undefined {
     return this.editors[0];
@@ -105,8 +120,6 @@ export class DocumentEditorComponent
     this.imageAssets.forEach((asset) => URL.revokeObjectURL(asset.objectUrl));
     this.editors.forEach((editor) => editor.destroy());
     this.editors = [];
-    this.resizeObservers.forEach((observer) => observer.disconnect());
-    this.resizeObservers = [];
     if (this.paginationRaf) {
       cancelAnimationFrame(this.paginationRaf);
       this.paginationRaf = 0;
@@ -361,50 +374,32 @@ export class DocumentEditorComponent
   }
 
   private paginateHtml(html: string): string[] {
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.visibility = 'hidden';
-    container.style.pointerEvents = 'none';
-    container.style.width = `${this.pageWidth - this.pagePadding * 2}px`;
-    container.style.padding = '0';
-    container.style.boxSizing = 'border-box';
-    container.style.lineHeight = '1.6';
-    container.style.fontSize = '16px';
-    container.style.fontFamily = 'inherit';
-    container.innerHTML = html || '<p></p>';
+    if (!this.documentRef?.body) {
+      return [html || '<p></p>'];
+    }
 
-    document.body.appendChild(container);
+    const blocks = this.blockExtractorService.extractBlocksFromHtml(
+      html || '<p></p>',
+      {
+        contentWidth: this.pageWidth - this.pagePadding * 2,
+        defaultFont: DEFAULT_DOCUMENT_FONT,
+        defaultLineHeight: DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
+        measurementRoot: this.documentRef.body,
+      },
+    );
 
-    const pages: string[] = [];
-    const usableHeight = this.pageHeight - this.pagePadding * 2;
-    let currentPage = document.createElement('div');
-    currentPage.style.width = '100%';
-    pages.push('');
+    const pages = this.documentLayoutEngineService.paginateBlocks(
+      blocks,
+      {
+        pageHeight: this.pageHeight,
+        pagePadding: this.pagePadding,
+        pageWidth: this.pageWidth,
+        reservedBottom: 0,
+        reservedTop: 0,
+      },
+    );
 
-    const moveToNewPage = (node: Node) => {
-      const newPage = document.createElement('div');
-      newPage.appendChild(node.cloneNode(true));
-      pages.push(newPage.innerHTML);
-      currentPage = newPage;
-    };
-
-    Array.from(container.childNodes).forEach((node) => {
-      currentPage.appendChild(node.cloneNode(true));
-      container.innerHTML = currentPage.innerHTML;
-
-      if (container.scrollHeight > usableHeight) {
-        currentPage.removeChild(currentPage.lastChild as ChildNode);
-        pages[pages.length - 1] = currentPage.innerHTML;
-        moveToNewPage(node);
-        container.innerHTML = currentPage.innerHTML;
-      } else {
-        pages[pages.length - 1] = currentPage.innerHTML;
-      }
-    });
-
-    document.body.removeChild(container);
-
-    return pages.length ? pages : ['<p></p>'];
+    return pages.length ? pages.map((page) => page.html) : ['<p></p>'];
   }
 
   private syncEditorsToHosts(): void {
@@ -420,15 +415,12 @@ export class DocumentEditorComponent
       const host = hosts[index].nativeElement;
       const editor = this.createEditor(host, this.pageContents[index], index);
       this.editors.push(editor);
-      this.observeEditorHeight(host);
     }
 
     // Remove extra editors if pagination shrank
     while (this.editors.length > this.pageContents.length) {
       const editor = this.editors.pop();
       editor?.destroy();
-      const observer = this.resizeObservers.pop();
-      observer?.disconnect();
     }
 
     // Update host elements if they changed
@@ -580,15 +572,6 @@ export class DocumentEditorComponent
 
   private getEditorContentSize(editor: Editor | undefined): number {
     return editor?.state.doc.content.size ?? 0;
-  }
-
-  private observeEditorHeight(host: HTMLElement): void {
-    if (typeof ResizeObserver === 'undefined') {
-      return;
-    }
-    const observer = new ResizeObserver(() => this.schedulePaginationUpdate());
-    observer.observe(host);
-    this.resizeObservers.push(observer);
   }
 
   private applySelectionOffset(offset: number): void {

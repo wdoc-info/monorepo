@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>wdoc examples</title>
+    <style>
+      :root {
+        --bg: #f7f8fb;
+        --card: #ffffff;
+        --text: #111827;
+        --muted: #4b5563;
+        --line: #d1d5db;
+        --accent: #0f5eea;
+        --accent-strong: #0a3fb3;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--text);
+        background: linear-gradient(180deg, #f2f4f8 0%, var(--bg) 100%);
+      }
+
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 28px 20px 56px;
+      }
+
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(1.75rem, 2vw + 1rem, 2.5rem);
+      }
+
+      .lead {
+        margin: 0;
+        color: var(--muted);
+        max-width: 72ch;
+      }
+
+      .meta {
+        margin: 14px 0 28px;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      h2 {
+        margin: 28px 0 12px;
+        font-size: 1.25rem;
+      }
+
+      .group {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      tr:last-child td {
+        border-bottom: none;
+      }
+
+      th {
+        background: #f9fafb;
+        font-size: 0.92rem;
+      }
+
+      .name {
+        font-weight: 600;
+      }
+
+      .path {
+        margin-top: 4px;
+        font-size: 0.86rem;
+        color: var(--muted);
+      }
+
+      .desc {
+        color: var(--muted);
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        display: inline-block;
+        text-decoration: none;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text);
+        background: #fff;
+      }
+
+      .btn:hover {
+        border-color: #9ca3af;
+      }
+
+      .btn.primary {
+        border-color: transparent;
+        background: var(--accent);
+        color: #fff;
+      }
+
+      .btn.primary:hover {
+        background: var(--accent-strong);
+      }
+
+      .extra {
+        margin-top: 24px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+      }
+
+      code {
+        background: #eef2ff;
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+
+      @media (max-width: 860px) {
+        table,
+        thead,
+        tbody,
+        th,
+        td,
+        tr {
+          display: block;
+        }
+
+        thead {
+          display: none;
+        }
+
+        tr {
+          border-bottom: 1px solid var(--line);
+        }
+
+        tr:last-child {
+          border-bottom: none;
+        }
+
+        td {
+          border: none;
+          padding-top: 8px;
+          padding-bottom: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>wdoc example library</h1>
+      <p class="lead">
+        This page indexes the current sample <code>.wdoc</code> documents. For each file you can:
+        download it directly, or open it in <code>app.wdoc.info</code> with one click.
+      </p>
+      <p class="meta">
+        Base URL for links: <code id="base-url"></code>
+      </p>
+
+      <section>
+        <h2>Unit Test Samples</h2>
+        <div class="group">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 34%">File</th>
+                <th style="width: 41%">Purpose</th>
+                <th style="width: 25%">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="unit-test-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Security Samples</h2>
+        <div class="group">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 34%">File</th>
+                <th style="width: 41%">Purpose</th>
+                <th style="width: 25%">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="security-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="extra">
+        <h2 style="margin-top: 0">Unpacked sample</h2>
+        <p class="lead">
+          Raw HTML sample used during pagination/debug sessions:
+          <a href="./unpacked/overflowing_text/index.html">unpacked/overflowing_text/index.html</a>
+        </p>
+      </section>
+    </main>
+
+    <script>
+      (function () {
+        var APP_BASE_URL = "https://app.wdoc.info/";
+        var pageBaseUrl = new URL(".", window.location.href).toString();
+        var examples = {
+          unitTest: [
+            {
+              path: "unit_test/hello_world.wdoc",
+              purpose: "Minimal hello-world document.",
+            },
+            {
+              path: "unit_test/form.wdoc",
+              purpose: "Interactive form fields and persisted answers.",
+            },
+            {
+              path: "unit_test/attachment.wdoc",
+              purpose: "Form attachment/file embedding scenario.",
+            },
+            {
+              path: "unit_test/barcode.wdoc",
+              purpose: "Barcode rendering behavior.",
+            },
+            {
+              path: "unit_test/inline-image.wdoc",
+              purpose: "Inline image rendering.",
+            },
+            {
+              path: "unit_test/header_and_footer.wdoc",
+              purpose: "Header/footer layout and pagination behavior.",
+            },
+            {
+              path: "unit_test/already_paginated.wdoc",
+              purpose: "Document already containing pagination markup.",
+            },
+            {
+              path: "unit_test/not_paginated.wdoc",
+              purpose: "Document that needs client-side pagination.",
+            },
+            {
+              path: "unit_test/pagenum_nbpages_date.wdoc",
+              purpose: "Page numbering / total pages / date placeholders.",
+            },
+          ],
+          security: [
+            {
+              path: "security/internal_image.wdoc",
+              purpose: "Safe internal asset references.",
+            },
+            {
+              path: "security/external_image.wdoc",
+              purpose: "External image references for security checks.",
+            },
+            {
+              path: "security/internal_script.wdoc",
+              purpose: "Script tag sanitization validation.",
+            },
+            {
+              path: "security/leaking_css.wdoc",
+              purpose: "Potential CSS-based data leakage scenario.",
+            },
+            {
+              path: "security/image_changed.wdoc",
+              purpose: "Manifest/hash integrity mismatch handling.",
+            },
+          ],
+        };
+
+        function fileName(path) {
+          return path.split("/").pop() || path;
+        }
+
+        function absoluteExampleUrl(path) {
+          return new URL(path, pageBaseUrl).toString();
+        }
+
+        function openInAppUrl(path) {
+          return APP_BASE_URL + "?url=" + encodeURIComponent(absoluteExampleUrl(path));
+        }
+
+        function buildRow(example) {
+          var tr = document.createElement("tr");
+
+          var fileTd = document.createElement("td");
+          var nameDiv = document.createElement("div");
+          nameDiv.className = "name";
+          nameDiv.textContent = fileName(example.path);
+          var pathDiv = document.createElement("div");
+          pathDiv.className = "path";
+          pathDiv.textContent = example.path;
+          fileTd.appendChild(nameDiv);
+          fileTd.appendChild(pathDiv);
+
+          var purposeTd = document.createElement("td");
+          purposeTd.className = "desc";
+          purposeTd.textContent = example.purpose;
+
+          var actionsTd = document.createElement("td");
+          var actions = document.createElement("div");
+          actions.className = "actions";
+
+          var download = document.createElement("a");
+          download.className = "btn";
+          download.href = "./" + example.path;
+          download.download = fileName(example.path);
+          download.textContent = "Download .wdoc";
+
+          var openInApp = document.createElement("a");
+          openInApp.className = "btn primary";
+          openInApp.href = openInAppUrl(example.path);
+          openInApp.target = "_blank";
+          openInApp.rel = "noopener noreferrer";
+          openInApp.textContent = "Open in app.wdoc.info";
+
+          actions.appendChild(download);
+          actions.appendChild(openInApp);
+          actionsTd.appendChild(actions);
+
+          tr.appendChild(fileTd);
+          tr.appendChild(purposeTd);
+          tr.appendChild(actionsTd);
+
+          return tr;
+        }
+
+        function renderTable(targetId, list) {
+          var body = document.getElementById(targetId);
+          if (!body) {
+            return;
+          }
+          list.forEach(function (example) {
+            body.appendChild(buildRow(example));
+          });
+        }
+
+        var baseNode = document.getElementById("base-url");
+        if (baseNode) {
+          baseNode.textContent = pageBaseUrl;
+        }
+
+        renderTable("unit-test-body", examples.unitTest);
+        renderTable("security-body", examples.security);
+      })();
+    </script>
+  </body>
+</html>
