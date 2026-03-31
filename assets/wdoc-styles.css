@@ -1,6 +1,6 @@
-/* Container for the paginated pages with dark background */
+/* Container for the paginated pages with the same slate background as the editor */
 wdoc-container {
-  background: #333;
+  background: #f8fafc;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -36,6 +36,17 @@ wdoc-content {
   flex: 1 1 auto;
   display: block;
   width: 100%;
+}
+
+wdoc-content p:empty::before,
+wdoc-content li:empty::before,
+wdoc-content h1:empty::before,
+wdoc-content h2:empty::before,
+wdoc-content h3:empty::before,
+wdoc-content h4:empty::before,
+wdoc-content h5:empty::before,
+wdoc-content h6:empty::before {
+  content: "\200B";
 }
 
 @media (max-width: 840px) {
