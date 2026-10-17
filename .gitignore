@@ -44,3 +44,10 @@ www.wdoc.info/pnpm-debug.log*
 www.wdoc.info/.env
 www.wdoc.info/.env.production
 www.wdoc.info/.idea/
+
+# validator.wdoc.info artifacts
+validator.wdoc.info/dist/
+validator.wdoc.info/.angular/
+validator.wdoc.info/coverage/
+validator.wdoc.info/test-results/
+validator.wdoc.info/playwright-report/

@@ -1,0 +1,57 @@
+name: validator.wdoc.info - Checks
+
+on:
+  push:
+    paths:
+      - validator.wdoc.info/**
+      - spec/**
+      - app.wdoc.info/src/app/signatures/core.ts
+      - app.wdoc.info/src/app/signatures/validation.ts
+      - app.wdoc.info/src/app/signatures/archive.ts
+      - .github/workflows/validator-tests.yml
+  pull_request:
+    paths:
+      - validator.wdoc.info/**
+      - spec/**
+      - app.wdoc.info/src/app/signatures/core.ts
+      - app.wdoc.info/src/app/signatures/validation.ts
+      - app.wdoc.info/src/app/signatures/archive.ts
+      - .github/workflows/validator-tests.yml
+  workflow_dispatch: {}
+
+jobs:
+  validator:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: validator.wdoc.info
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: validator.wdoc.info/package-lock.json
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: npm ci
+      - name: Check mirrors and run conformance/report tests
+        run: npm test
+      - name: Check TypeScript and Angular templates
+        run: npm run typecheck
+      - name: Build the static application and worker
+        run: npm run build
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Run browser workflows
+        run: npm run e2e
+        env:
+          CI: 'true'
+      - name: Save static build
+        uses: actions/upload-artifact@v4
+        with:
+          name: wdoc-validator-static
+          path: validator.wdoc.info/dist/validator/browser

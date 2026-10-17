@@ -8,9 +8,11 @@ import { buildEmailSender } from "./email";
 import { loginSchema, loginValidateSchema } from "./validation";
 import { generateOtpCode, hashOtpCode, verifyOtpCode } from "./auth/otp";
 import { signJwt } from "./auth/jwt";
+import { createSignatureRoutes, loadSigningConfig, type SigningConfig } from "./signatures/routes";
 import { SimpleRateLimiter } from "./rateLimit";
 
 export type AppDependencies = {
+  signing: SigningConfig;
   config: AppConfig;
   db: DatabaseClient;
   sendEmail: ReturnType<typeof buildEmailSender>;
@@ -28,7 +30,7 @@ export const createApp = (deps?: Partial<AppDependencies>) => {
     "*",
     cors({
       origin: config.corsOrigins,
-      allowMethods: ["POST", "OPTIONS"],
+      allowMethods: ["GET", "POST", "OPTIONS"],
       allowHeaders: ["Content-Type", "Authorization"],
     }),
   );
@@ -40,7 +42,7 @@ export const createApp = (deps?: Partial<AppDependencies>) => {
           400,
         );
       }
-      return result.data as T;
+      return;
     });
 
   app.post("/login", jsonValidator(loginSchema), async (c) => {
@@ -180,6 +182,8 @@ export const createApp = (deps?: Partial<AppDependencies>) => {
       },
     });
   });
+
+  app.route("/", createSignatureRoutes(db.db, config, deps?.signing ?? loadSigningConfig()));
 
   return app;
 };

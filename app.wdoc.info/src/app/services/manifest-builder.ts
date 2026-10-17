@@ -1,107 +1,58 @@
 import JSZip from 'jszip';
+import { assertManifest, inventory, runtimePath, type Files, type Manifest } from '../signatures/core';
 import { APP_VERSION } from '../config/app.config';
-import { WdocLoaderService } from './wdoc-loader.service';
 
 export interface ManifestSection {
-  hashAlgorithm: 'sha256';
-  lastUpdateDate: string;
+  hashAlgorithm: 'SHA-256';
   files: Record<string, string>;
-  contentDigest: string;
 }
 
-export interface WdocManifest {
-  meta: {
-    docTitle: string;
-    creator?: string;
-    appVersion: string;
-    creationDate: string;
-    lastUpdateDate: string;
-    docVersion: string;
-  };
-  content: ManifestSection;
-  runtime: {
-    forms: Record<string, ManifestSection>;
-  };
+export interface WdocManifest extends Manifest {
+  runtime: Manifest['runtime'] & { forms: Record<string, ManifestSection> };
 }
 
 export interface ManifestMetaOverrides {
   docTitle?: string;
   creator?: string;
   appVersion?: string;
-  creationDate?: string;
   docVersion?: string;
 }
-
-const TEXT_ENCODER = new TextEncoder();
 
 export async function generateManifest(
   zip: JSZip,
   metaOverrides?: ManifestMetaOverrides,
 ): Promise<WdocManifest> {
   const now = new Date().toISOString();
-
-  const contentFiles: Record<string, string> = {};
-  const runtimeFormFiles: Record<string, string> = {};
-
-  const entries = Object.values(zip.files);
-  for (const entry of entries) {
-    if (entry.dir || entry.name === 'manifest.json') {
-      continue;
-    }
-
-    const data = await entry.async('uint8array');
-    const hash = await WdocLoaderService.computeSha256(data);
-
-    if (entry.name.startsWith('wdoc-form/')) {
-      runtimeFormFiles[entry.name] = hash;
-    } else {
-      contentFiles[entry.name] = hash;
-    }
+  const originals: Files = Object.create(null), drafts: Files = Object.create(null);
+  for (const entry of Object.values(zip.files)) {
+    if (entry.dir || entry.name === 'manifest.json') continue;
+    if (entry.name.startsWith('wdoc-form/')) drafts[entry.name] = await entry.async('uint8array');
+    else if (!runtimePath(entry.name)) originals[entry.name] = await entry.async('uint8array');
   }
-
-  const baseMeta = {
-    docTitle: metaOverrides?.docTitle ?? 'WDOC document',
-    ...(metaOverrides?.creator ? { creator: metaOverrides.creator } : {}),
-    creationDate: metaOverrides?.creationDate ?? now,
-    appVersion: metaOverrides?.appVersion ?? APP_VERSION,
-    docVersion: metaOverrides?.docVersion ?? '1.0.0',
-  } satisfies Omit<WdocManifest['meta'], 'lastUpdateDate' | 'creator'> & {
-    creator?: string;
-  };
-
-  return {
+  const manifest: WdocManifest = {
+    manifestVersion: '1.0',
     meta: {
-      ...baseMeta,
-      lastUpdateDate: now,
+      docId: crypto.randomUUID(),
+      docTitle: metaOverrides?.docTitle ?? 'WDOC document',
+      ...(metaOverrides?.creator ? { creator: metaOverrides.creator } : {}),
+      appVersion: metaOverrides?.appVersion ?? APP_VERSION,
+      docVersion: metaOverrides?.docVersion ?? '1.0.0',
+      createdAt: now,
+      contentUpdatedAt: now,
     },
-    content: await buildSection(contentFiles, now),
+    content: { hashAlgorithm: 'SHA-256', files: await inventory(originals) },
     runtime: {
-      forms:
-        Object.keys(runtimeFormFiles).length > 0
-          ? { default: await buildSection(runtimeFormFiles, now) }
-          : {},
+      submissions: {},
+      revisions: [],
+      updatedAt: now,
+      forms: Object.keys(drafts).length ? { default: { hashAlgorithm: 'SHA-256', files: await inventory(drafts) } } : {},
     },
+    signatures: { document: [], forms: [] },
   };
+  assertManifest(manifest);
+  return manifest;
 }
 
-export function serializeManifest(manifest: WdocManifest): string {
+export function serializeManifest(manifest: Manifest): string {
   return JSON.stringify(manifest, null, 2);
-}
-
-async function buildSection(
-  files: Record<string, string>,
-  lastUpdateDate: string,
-): Promise<ManifestSection> {
-  return {
-    hashAlgorithm: 'sha256',
-    lastUpdateDate,
-    files,
-    contentDigest: await computeDigest(files),
-  };
-}
-
-async function computeDigest(files: Record<string, string>): Promise<string> {
-  const sorted = Object.entries(files).sort(([a], [b]) => a.localeCompare(b));
-  const payload = sorted.map(([path, hash]) => `${path}:${hash}`).join('\n');
-  return WdocLoaderService.computeSha256(TEXT_ENCODER.encode(payload));
 }

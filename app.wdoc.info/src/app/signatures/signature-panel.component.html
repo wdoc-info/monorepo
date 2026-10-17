@@ -1,0 +1,53 @@
+<section class="signatures" aria-label="Document signatures" [attr.aria-busy]="busy">
+  <button type="button" (click)="expanded = !expanded" [attr.aria-expanded]="expanded">Signatures · {{ report?.document?.[0] ? label(report!.document[0]) : 'Checking…' }}</button>
+  @if (expanded) {
+    <p>Document signatures protect original content. Form signatures protect individual snapshots. A final seal checks the complete archive at a given time.</p>
+    <p>Your document, answers and attachments stay on this device. Only fingerprints and signature proofs reach the signing server. wdoc attests your authenticated request; the files are verified locally. Signed dates are declared dates.</p>
+    @if (state && report) {
+      <p>Original files: {{ report.content.status === 'file-modified' ? 'Modified or missing' : 'Hashes match the manifest' }}</p>
+      <div class="actions">
+        <button [disabled]="busy" (click)="mutate('sign')">Sign original document</button>
+        <button [disabled]="busy" (click)="mutate('seal')">Seal complete archive</button>
+        <button [disabled]="busy" (click)="download()">Download archive</button>
+      </div>
+      <p>To co-sign, exchange the .wdoc file through your preferred channel. This app does not upload or store it on a document server.</p>
+      @if (forms.length) {
+        <label>Form <select [(ngModel)]="selectedForm">@for (form of forms; track $index) { <option [ngValue]="$index">{{ form.id || 'form-' + ($index + 1) }}</option> }</select></label>
+        <button [disabled]="busy" (click)="review()">Review current answers for a new signed snapshot</button>
+        <p>Existing signed snapshots stay read-only. Editing the form creates a new submission.</p>
+      }
+      @if (preview) { <pre aria-label="Exact answer snapshot">{{ preview }}</pre> }
+      @for (file of previewFiles; track file.name) {
+        <p>{{ file.name }} · {{ file.size }} bytes · SHA-256 {{ file.hash }} <button (click)="downloadAttachment(file)">Download attachment for review</button></p>
+      }
+      @if (!report.seals.length) { <p>No final seal: completeness of the archive has not been established.</p> }
+      @if (snapshot || pendingCosign) {
+        <p>Attachments: {{ attachmentNames.join(', ') || 'None' }}</p>
+        <label><input type="checkbox" [(ngModel)]="consent" /> I have reviewed these exact answers and attachments and consent to wdoc attesting my signature.</label>
+        <button [disabled]="busy || !consent" (click)="signForm()">Confirm and sign snapshot</button>
+      }
+      @for (group of [{name: 'Original document', checks: report.document}, {name: 'Form submissions', checks: report.forms}, {name: 'Previous content revisions', checks: report.revisions}, {name: 'Final seals', checks: report.seals}]; track group.name) {
+        <h3>{{ group.name }}</h3>
+        @for (check of group.checks; track $index) {
+          <article>
+            <strong>{{ label(check) }}</strong>
+            <p>{{ check.formId }} {{ check.submissionId }}</p>
+            @if (check.status === 'valid-trusted' || check.status === 'valid-untrusted') {
+              <p>{{ check.authority === 'platform' ? (check.proofMode === 'digest-only' ? 'Attested by wdoc · files checked on this device' : 'Attested by wdoc') : 'Personal signature' }} · {{ check.owner }} · {{ check.signedAt }}</p>
+              @if (check.signer) { <p>Attested signer: {{ check.signer | json }}</p> }
+            }
+            <p>Key: {{ check.kid || '—' }}</p>
+            @if (keyInfo(check.kid); as key) { <details><summary>Public key and trust policy</summary><pre>{{ key | json }}</pre></details> }
+            @if (check.formId && check.submissionId) {
+              <button (click)="showSnapshot(check.formId, check.submissionId)">View read-only answers</button>
+              <button [disabled]="busy" (click)="cosign(check.formId, check.submissionId)">Co-sign this snapshot</button>
+            }
+          </article>
+        }
+      }
+    }
+  }
+  @if (busy) { <p role="status">Verifying and saving…</p> }
+  @if (message) { <p role="status">{{ message }}</p> }
+  @if (error) { <p role="alert">{{ error }}</p> }
+</section>

@@ -51,7 +51,7 @@ describe("auth flow", () => {
     });
     expect(validateResponse.status).toBe(200);
 
-    const json = await validateResponse.json();
+    const json = await validateResponse.json() as { token: string; user: { email: string } };
     expect(json.token).toBeDefined();
     expect(json.user.email).toBe(email);
   });
@@ -70,4 +70,15 @@ describe("auth flow", () => {
       "http://localhost:4200",
     );
   });
+  test("allows anonymous public-key lookup from the validator origins", async () => {
+    for (const origin of ["https://validator.wdoc.info", "http://localhost:4300", "http://127.0.0.1:4300"]) {
+      const response = await app.request("/signing-keys", { headers: { Origin: origin } });
+      expect(response.status).toBe(200);
+      expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(await response.json()).toHaveProperty("keys");
+    }
+    const response = await app.request("/signing-keys", { headers: { Origin: "https://unconfigured.example" } });
+    expect(response.headers.get("access-control-allow-origin")).not.toBe("https://unconfigured.example");
+  });
+
 });

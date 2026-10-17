@@ -1,4 +1,6 @@
-import JSZip, { JSZipObject } from 'jszip';
+import { readDocumentArchive } from '../signatures/archive';
+import { decodeUtf8, type Files } from '../signatures/core';
+import type { JSZipObject } from 'jszip';
 
 export type ZipEntryType = 'text' | 'arraybuffer' | 'uint8array' | 'blob';
 
@@ -33,15 +35,15 @@ export interface ZipContainer {
 
 export class StreamedZip implements ZipContainer {
   private constructor(
-    private readonly zip: JSZip,
+    private readonly files: Files,
     private readonly entryMap: Map<string, JSZipObject>,
   ) {}
 
   static async fromArrayBuffer(buffer: ArrayBuffer): Promise<StreamedZip> {
-    const zip = await JSZip.loadAsync(buffer, { createFolders: true });
+    const {zip, files} = await readDocumentArchive(buffer);
     const entryMap = new Map<string, JSZipObject>();
     Object.values(zip.files).forEach((entry) => entryMap.set(entry.name, entry));
-    return new StreamedZip(zip, entryMap);
+    return new StreamedZip(files, entryMap);
   }
 
   entries(): StreamedZipEntry[] {
@@ -83,13 +85,12 @@ export class StreamedZip implements ZipContainer {
       name: entry.name,
       dir: entry.dir,
       async: async (type: ZipEntryType) => {
+        const bytes = this.files[entry.name] ?? new Uint8Array();
         switch (type) {
-          case 'text':
-          case 'arraybuffer':
-          case 'uint8array':
-          case 'blob':
-          default:
-            return entry.async(type);
+          case 'text': return decodeUtf8(bytes);
+          case 'arraybuffer': return bytes.slice().buffer as ArrayBuffer;
+          case 'uint8array': return bytes.slice();
+          case 'blob': return new Blob([new Uint8Array(bytes)]);
         }
       },
     };

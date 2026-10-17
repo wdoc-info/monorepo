@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.wdoc.info/schemas/key-registry.schema.json",
+  "type": "object",
+  "properties": {
+    "keys": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kid": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://[^/?#@]+/info/[A-Za-z0-9_-]+$(?![\\s\\S])"
+          },
+          "jwk": {
+            "type": "object",
+            "properties": {
+              "kty": {
+                "const": "EC"
+              },
+              "crv": {
+                "const": "P-256"
+              },
+              "x": {
+                "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+              },
+              "y": {
+                "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+              },
+              "alg": {
+                "const": "ES256"
+              },
+              "use": {
+                "const": "sig"
+              },
+              "key_ops": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "contains": {
+                  "const": "verify"
+                }
+              },
+              "kid": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "kty",
+              "crv",
+              "x",
+              "y"
+            ],
+            "additionalProperties": true,
+            "not": {
+              "required": [
+                "d"
+              ]
+            }
+          },
+          "status": {
+            "enum": [
+              "active",
+              "retired",
+              "revoked"
+            ]
+          },
+          "trusted": {
+            "type": "boolean"
+          },
+          "authority": {
+            "enum": [
+              "platform",
+              "personal"
+            ]
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "userId": {
+            "type": "string",
+            "minLength": 1
+          },
+          "notBefore": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$(?![\\s\\S])"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$(?![\\s\\S])"
+          }
+        },
+        "required": [
+          "kid",
+          "jwk",
+          "status",
+          "trusted",
+          "authority",
+          "owner"
+        ],
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "authority": {
+                  "const": "personal"
+                }
+              },
+              "required": [
+                "authority"
+              ]
+            },
+            "then": {
+              "required": [
+                "userId"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "allowedOrigins": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "format": "uri",
+        "pattern": "^https://[^/?#@]+$(?![\\s\\S])"
+      }
+    }
+  },
+  "required": [
+    "keys"
+  ],
+  "additionalProperties": false,
+  "description": "Public registry response; offline CLI input additionally requires allowedOrigins. Exact origin matching, URL parsing, KID uniqueness, valid curve points, and current time policy are semantic checks."
+}

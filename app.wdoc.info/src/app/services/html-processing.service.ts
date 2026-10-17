@@ -9,6 +9,7 @@ import { QRCodeToDataURLOptions } from 'qrcode';
 import JsBarcode from 'jsbarcode';
 import { ExternalImageDialogComponent } from './external-image-dialog.component';
 import { type ZipContainer } from './zip-reader';
+import { decodeUtf8, safePath } from '../signatures/core';
 import {
   DEFAULT_DOCUMENT_FONT,
   DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
@@ -21,6 +22,8 @@ import { DocumentLayoutEngineService } from '../layout/document-layout-engine.se
 
 interface ProcessHtmlOptions {
   defaultTitle?: string;
+  /** Directory containing index.html, relative to the root of the archive. */
+  basePath?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -63,6 +66,8 @@ export class HtmlProcessingService {
     html: string,
     options: ProcessHtmlOptions = {},
   ): Promise<{ html: string; documentTitle: string }> {
+    // Start the viewer stylesheet request before asynchronous archive resource work.
+    const viewerCss = lastValueFrom(this.http.get('assets/wdoc-styles.css', { responseType: 'text' })).catch(() => '');
     const sanitizedHtml = this.sanitizeHtml(html);
     const parser = new DOMParser();
     const doc = parser.parseFromString(sanitizedHtml, 'text/html');
@@ -70,6 +75,7 @@ export class HtmlProcessingService {
       doc,
       options.defaultTitle ?? 'WDOC viewer',
     );
+    const basePath = options.basePath ?? '';
 
     const images = doc.querySelectorAll('img');
     for (const img of Array.from(images)) {
@@ -95,21 +101,13 @@ export class HtmlProcessingService {
         continue;
       }
 
-      const normalizedSrc = src.startsWith('/') ? src.slice(1) : src;
+      const normalizedSrc = this.localResource(src, `${basePath}index.html`)?.path;
+      if (!normalizedSrc) { img.removeAttribute('src'); continue; }
       const fileInZip = zip.file(normalizedSrc);
       if (fileInZip) {
         try {
           const blobContent = (await fileInZip.async('blob')) as Blob;
-          const ext = normalizedSrc.split('.').pop()?.toLowerCase();
-          let mime = 'image/png';
-          if (ext === 'jpg' || ext === 'jpeg') {
-            mime = 'image/jpeg';
-          } else if (ext === 'gif') {
-            mime = 'image/gif';
-          } else if (ext === 'svg') {
-            mime = 'image/svg+xml';
-          }
-          const typedBlob = new Blob([blobContent], { type: mime });
+          const typedBlob = new Blob([blobContent], { type: this.getMimeType(normalizedSrc) });
           const objectUrl = URL.createObjectURL(typedBlob);
           this.objectUrls.push(objectUrl);
           img.setAttribute('src', objectUrl);
@@ -121,40 +119,59 @@ export class HtmlProcessingService {
       }
     }
 
+    if (doc.querySelector('a[href]')) {
+      await this.replaceInternalLinks(zip, doc, basePath);
+    }
+
     let combinedCSS = '';
+    const indexPath = `${basePath}index.html`;
+    const cssBudget = { imports: 0, urls: new Map<string, string>() };
+    let cssCharacters = 0;
+    const resolveStyle = async (text: string, path: string, stack = new Set<string>()) => {
+      const css = await this.resolveCss(zip, text, path, stack, cssBudget);
+      cssCharacters += css.length;
+      if (cssCharacters > 30_000_000) throw new Error('Expanded stylesheet exceeds rendering limits.');
+      return css;
+    };
+    const appendStyle = (css: string) => {
+      if (++cssCharacters > 30_000_000) throw new Error('Expanded stylesheet exceeds rendering limits.');
+      combinedCSS += css + '\n';
+    };
 
     const headStyleEls = Array.from(doc.head.querySelectorAll('style'));
-    headStyleEls.forEach((el) => {
+    for (const el of headStyleEls) {
       if (el.textContent) {
-        combinedCSS += el.textContent + '\n';
+        appendStyle(await resolveStyle(el.textContent, indexPath));
       }
-    });
+    }
 
     const headLinkEls = Array.from(doc.head.querySelectorAll('link[rel="stylesheet"]'));
     for (const linkEl of headLinkEls) {
       const href = linkEl.getAttribute('href');
       if (href && !href.startsWith('http') && !href.startsWith('//') && !href.startsWith('data:')) {
-        const normalizedHref = href.startsWith('/') ? href.slice(1) : href;
+        const normalizedHref = this.localResource(href, indexPath)?.path;
+        if (!normalizedHref) continue;
         const cssFile = zip.file(normalizedHref);
         if (cssFile) {
           try {
-            const cssContent = (await cssFile.async('text')) as string;
-            combinedCSS += cssContent + '\n';
+            const cssContent = decodeUtf8(await cssFile.async('uint8array') as Uint8Array);
+            appendStyle(await resolveStyle(cssContent, normalizedHref, new Set([normalizedHref])));
           } catch (error) {
-            console.error(`Error loading internal CSS file ${normalizedHref}:`, error);
+            throw new Error('Unable to render the local stylesheet.');
           }
         }
       }
     }
 
-    try {
-      const externalCSS = await lastValueFrom(
-        this.http.get('assets/wdoc-styles.css', { responseType: 'text' }),
-      );
-      combinedCSS += externalCSS + '\n';
-    } catch (error) {
-      console.error('Error loading external CSS:', error);
+    for (const element of Array.from(doc.body.querySelectorAll('[style]'))) {
+      element.setAttribute('style', await resolveStyle(element.getAttribute('style') || '', indexPath));
     }
+    for (const style of Array.from(doc.body.querySelectorAll('style'))) {
+      style.textContent = (await resolveStyle(style.textContent || '', indexPath)).replace(/<\/style/gi, '<\\/style');
+    }
+    const builtinCss = await viewerCss;
+    if (cssCharacters + builtinCss.length + 1 > 30_000_000) throw new Error('Expanded stylesheet exceeds rendering limits.');
+    combinedCSS += builtinCss + '\n';
 
     this.applyPaginationStyles(combinedCSS);
 
@@ -163,7 +180,7 @@ export class HtmlProcessingService {
     }
 
     const newStyleEl = doc.createElement('style');
-    newStyleEl.textContent = combinedCSS;
+    newStyleEl.textContent = combinedCSS.replace(/<\/style/gi, '<\\/style');
     doc.body.insertBefore(newStyleEl, doc.body.firstChild);
 
     await this.renderBarcodes(doc);
@@ -189,7 +206,7 @@ export class HtmlProcessingService {
 
     this.applyPageMetadata(doc);
 
-    await this.formManagerService.populateFormsFromZip(zip, doc);
+    await this.formManagerService.populateFormsFromZip(zip, doc, basePath);
     return { html: doc.documentElement.outerHTML, documentTitle };
   }
 
@@ -218,7 +235,189 @@ export class HtmlProcessingService {
   }
 
   private isExternalImage(src: string): boolean {
-    return src.startsWith('http') || src.startsWith('//') || src.startsWith('data:');
+    return /^(?:https?:|\/\/|data:)/i.test(src);
+  }
+
+  /**
+   * Turns links to files embedded in the archive into blob URLs. Relative URLs
+   * would otherwise be resolved against the viewer application instead of the
+   * .wdoc archive, especially when opened in a separate tab.
+   */
+  private async replaceInternalLinks(
+    zip: ZipContainer,
+    doc: Document,
+    basePath: string,
+  ): Promise<void> {
+    const links = Array.from(doc.querySelectorAll<HTMLAnchorElement>('a[href]'));
+
+    for (const link of links) {
+      const href = link.getAttribute('href');
+      if (!href || this.isExternalLink(href)) {
+        continue;
+      }
+
+      const resourcePath = href.split(/[?#]/, 1)[0];
+      if (!resourcePath) {
+        continue;
+      }
+
+      const filePath = this.localResource(resourcePath, `${basePath}index.html`)?.path;
+      if (!filePath) continue;
+      const fileInZip = zip.file(filePath);
+      if (!fileInZip || fileInZip.dir) {
+        continue;
+      }
+
+      try {
+        const content = (await fileInZip.async('blob')) as Blob;
+        const objectUrl = URL.createObjectURL(
+          new Blob([content], { type: this.getMimeType(filePath) }),
+        );
+        this.objectUrls.push(objectUrl);
+
+        // Keep any fragment or query intended for the embedded resource.
+        link.href = `${objectUrl}${href.slice(resourcePath.length)}`;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+      } catch (error) {
+        console.error(`Error reading link target ${filePath} from zip:`, error);
+      }
+    }
+  }
+
+  private isExternalLink(href: string): boolean {
+    return (
+      href.startsWith('#') ||
+      href.startsWith('//') ||
+      /^[a-z][a-z\d+.-]*:/i.test(href)
+    );
+  }
+
+  private getMimeType(path: string): string {
+    const ext = path.split('.').pop()?.toLowerCase();
+    switch (ext) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'svg':
+        return 'image/svg+xml';
+      case 'webp':
+        return 'image/webp';
+      case 'avif':
+        return 'image/avif';
+      case 'woff':
+        return 'font/woff';
+      case 'woff2':
+        return 'font/woff2';
+      case 'ttf':
+        return 'font/ttf';
+      case 'otf':
+        return 'font/otf';
+      case 'pdf':
+        return 'application/pdf';
+      case 'json':
+        return 'application/json';
+      case 'jsonl':
+        return 'application/x-ndjson';
+      case 'usdz':
+        return 'model/vnd.usdz+zip';
+      case 'txt':
+        return 'text/plain';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+
+  private localResource(ref: string, containingPath: string): { path: string; fragment: string } | null {
+    try {
+      const url = new URL(ref.trim(), `https://archive.invalid/${containingPath}`);
+      const path = decodeURIComponent(url.pathname.slice(1));
+      return url.origin === 'https://archive.invalid' && safePath(path) ? { path, fragment: url.hash } : null;
+    } catch { return null; }
+  }
+
+  private async cssResource(zip: ZipContainer, ref: string, containingPath: string, cache: Map<string, string>): Promise<string> {
+    if (!ref.trim() || ref.trim().startsWith('#') || /^data:/i.test(ref.trim())) return ref;
+    const local = this.localResource(ref, containingPath);
+    if (!local) return 'data:,';
+    const entry = zip.file(local.path);
+    if (!entry || entry.dir) return 'data:,';
+    let url = cache.get(local.path);
+    if (!url) {
+      const bytes = await entry.async('uint8array') as Uint8Array;
+      url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: this.getMimeType(local.path) }));
+      cache.set(local.path, url); this.objectUrls.push(url);
+    }
+    return url + local.fragment;
+  }
+
+  private async replaceCss(text: string, pattern: RegExp, replace: (match: RegExpMatchArray) => Promise<string>): Promise<string> {
+    const parts: string[] = []; let last = 0, size = 0;
+    for (const match of text.matchAll(pattern)) {
+      const prefix = text.slice(last, match.index), replacement = await replace(match);
+      size += prefix.length + replacement.length;
+      if (size > 30_000_000) throw new Error('Expanded stylesheet exceeds rendering limits.');
+      parts.push(prefix, replacement); last = match.index! + match[0].length;
+    }
+    if (size + text.length - last > 30_000_000) throw new Error('Expanded stylesheet exceeds rendering limits.');
+    return parts.join('') + text.slice(last);
+  }
+
+  private async resolveCss(zip: ZipContainer, text: string, containingPath: string, stack = new Set<string>(), budget = { imports: 0, urls: new Map<string, string>() }): Promise<string> {
+    // Resolve against each containing stylesheet, never against the application URL.
+    const imports = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|@import\s+(?:url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)|"([^"]*)"|'([^']*)')\s*((?:[^;"']|"[^"]*"|'[^']*')*);/gi;
+    const clean = text.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/\*[\s\S]*?\*\//g, token => token.startsWith('/*') ? ' ' : token);
+    const expanded = await this.replaceCss(clean, imports, async match => {
+      if (match[0].startsWith('"') || match[0].startsWith("'")) return match[0];
+      if (++budget.imports > 1000) throw new Error('Too many stylesheet imports.');
+      const ref = match[1] ?? match[2] ?? match[3] ?? match[4] ?? match[5] ?? '';
+      const local = this.localResource(ref, containingPath);
+      if (!local || stack.has(local.path)) return '';
+      const entry = zip.file(local.path);
+      if (!entry || entry.dir) return '';
+      if (stack.size >= 64) throw new Error('Stylesheet imports are too deeply nested.');
+      const next = new Set(stack); next.add(local.path);
+      const content = await this.resolveCss(zip, decodeUtf8(await entry.async('uint8array') as Uint8Array), local.path, next, budget);
+      return this.wrapCssImport(content, (match[6] ?? '').trim());
+    });
+    // Imported CSS has already been resolved; its blob/data URLs must remain local.
+    return this.replaceCss(expanded, /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi, async match => {
+      if (match[0].startsWith('"') || match[0].startsWith("'")) return match[0];
+      const ref = match[1] ?? match[2] ?? match[3] ?? '';
+      const url = ref.startsWith('blob:') && Array.from(budget.urls.values()).some(u => ref === u || ref.startsWith(u + '#')) ? ref : await this.cssResource(zip, ref, containingPath, budget.urls);
+      return `url(${JSON.stringify(url)})`;
+    });
+  }
+
+  private wrapCssImport(content: string, condition: string): string {
+    let remaining = condition, layer: string | undefined, supports: string | undefined;
+    const take = (name: string): string | undefined => {
+      const start = new RegExp(`^${name}\\s*\\(`, 'i').exec(remaining);
+      if (!start) return undefined;
+      let depth = 1, quote = '';
+      for (let i = start[0].length; i < remaining.length; i++) {
+        const char = remaining[i];
+        if (quote) { if (char === '\\') i++; else if (char === quote) quote = ''; }
+        else if (char === '"' || char === "'") quote = char;
+        else if (char === '(') depth++;
+        else if (char === ')' && --depth === 0) {
+          const value = remaining.slice(start[0].length, i);
+          remaining = remaining.slice(i + 1).trim(); return value;
+        }
+      }
+      throw new Error('Invalid stylesheet import condition.');
+    };
+    layer = take('layer');
+    if (layer === undefined && /^layer(?:\s|$)/i.test(remaining)) { layer = ''; remaining = remaining.slice(5).trim(); }
+    supports = take('supports');
+    if (remaining) content = `@media ${remaining} {${content}}`;
+    if (supports !== undefined) content = `@supports (${supports}) {${content}}`;
+    if (layer !== undefined) content = `@layer ${layer} {${content}}`;
+    return content;
   }
 
   private async confirmExternalImageLoad(src: string): Promise<boolean> {
@@ -475,7 +674,7 @@ export class HtmlProcessingService {
   private ensurePageContentContainer(page: Element): Element {
     const doc = page.ownerDocument;
     const headers = Array.from(page.querySelectorAll(':scope > wdoc-header'));
-    const footers = Array.from(page.querySelectorAll(':scope > wdoc-footer, :scope > doc-footer'));
+    const footers = Array.from(page.querySelectorAll(':scope > wdoc-footer'));
     let content = page.querySelector(':scope > wdoc-content') as Element | null;
 
     if (!content) {

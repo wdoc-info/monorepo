@@ -19,7 +19,13 @@ const readNumber = (value: string | undefined, fallback: number) => {
 };
 
 const readCorsOrigins = (value: string | undefined): string[] => {
-  const defaults = ["http://localhost:4200", "https://app.wdoc.info"];
+  const defaults = [
+    "http://localhost:4200",
+    "https://app.wdoc.info",
+    "http://localhost:4300",
+    "http://127.0.0.1:4300",
+    "https://validator.wdoc.info",
+  ];
   if (!value) {
     return defaults;
   }

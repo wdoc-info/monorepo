@@ -1,12 +1,17 @@
 # Agent Guide for WDOC Project
 
+The root [`AGENTS.md`](../AGENTS.md) applies here. All repository-authored content
+must be in English regardless of prompt language. Every format-affecting change
+must update [`spec/`](../spec/README.md), including affected schemas, vectors,
+and format rules, in the same change.
+
 ## 1. Project Overview
 
 This project is an **Angular 20+** application serving as a viewer for **.wdoc** files.
 **What is a .wdoc?** It is a zipped archive containing:
 
 - `index.html` (The entry point).
-- `manifest.json` (Security verification and metadata).
+- `manifest.json` (Optional integrity/signature metadata; a manifestless document is valid and unsigned).
 - Assets (Images, CSS) referenced relatively.
 - `wdoc-form/` (JSON data for form state persistence).
 
@@ -30,7 +35,7 @@ The viewer is designed as an "anti-PDF," rendering HTML/CSS natively in the brow
 
 1. **Input:** File input or Drag-and-Drop.
 2. **Loader:** `WdocLoaderService` reads the ArrayBuffer.
-3. **Verification:** Validates `manifest.json` SHA-256 hashes before processing. **Fail if mismatch.**.
+3. **Verification:** Resolves a root index or a single enclosing folder. If `manifest.json` exists, validates its complete current structure and SHA-256 hashes before processing; fails on mismatch.
 4. **Processing:** `HtmlProcessingService` sanitizes HTML and handles asset injection.
 
 ### Pagination Logic (Critical Complexity)

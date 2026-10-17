@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.wdoc.info/schemas/manifest.schema.json",
+  "type": "object",
+  "properties": {
+    "manifestVersion": {
+      "const": "1.0"
+    },
+    "meta": {
+      "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/meta"
+    },
+    "content": {
+      "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/content"
+    },
+    "runtime": {
+      "type": "object",
+      "properties": {
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$(?![\\s\\S])"
+        },
+        "forms": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/draftSection"
+          }
+        },
+        "submissions": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/identifier"
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/submission"
+            }
+          }
+        },
+        "revisions": {
+          "type": "array",
+          "items": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/revision"
+          }
+        }
+      },
+      "required": [
+        "submissions",
+        "revisions"
+      ],
+      "additionalProperties": true
+    },
+    "signatures": {
+      "type": "object",
+      "properties": {
+        "document": {
+          "type": "array",
+          "items": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/documentWrapper"
+          }
+        },
+        "forms": {
+          "type": "array",
+          "items": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/formWrapper"
+          }
+        }
+      },
+      "required": [
+        "document",
+        "forms"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "manifestVersion",
+    "meta",
+    "content",
+    "runtime",
+    "signatures"
+  ],
+  "additionalProperties": false,
+  "description": "Manifest 1.0 structure when the optional manifest.json file is present. WDOC-FORMAT additionally requires exact inventories, nonce openings, matching IDs/paths, unique signature IDs, stable revision document IDs, unique revision scopes, safe UTF-16 path length, and cryptographic bindings."
+}

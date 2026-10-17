@@ -1,3 +1,4 @@
+import { generateManifest } from './manifest-builder';
 import { TestBed } from '@angular/core/testing';
 import {
   HttpClientTestingModule,
@@ -35,41 +36,23 @@ describe('WdocLoaderService', () => {
     httpMock = TestBed.inject(HttpTestingController);
   });
 
-  it('computes SHA-256 hashes', async () => {
-    const data = new TextEncoder().encode('hello');
-    const sha = await WdocLoaderService.computeSha256(data);
-    expect(sha).toBe(
-      '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824'
-    );
+  it('accepts a ZIP containing only index.html as an unsigned document', async () => {
+    const zip = new JSZip(); zip.file('index.html', '<p>Unsigned</p>');
+    htmlProcessor.processHtml.and.resolveTo({ html: '<p>Unsigned</p>', documentTitle: 'Document' });
+    expect(await service.loadWdocFromArrayBuffer(await zip.generateAsync({type:'arraybuffer'}))).not.toBeNull();
+    expect(dialogService.openAlert).not.toHaveBeenCalled();
   });
 
-  it('verifies manifest entries and blocks mismatches', async () => {
-    const zip = new JSZip();
-    zip.file('index.html', '<html></html>');
-    zip.file(
-      'manifest.json',
-      JSON.stringify({
-        meta: {
-          docTitle: 'Doc',
-          creator: 'tester',
-          creationDate: '2024-01-01T00:00:00Z',
-          lastUpdateDate: '2024-01-01T00:00:00Z',
-        },
-        content: {
-          hashAlgorithm: 'sha256',
-          lastUpdateDate: '2024-01-01T00:00:00Z',
-          files: { 'index.html': '0'.repeat(64) },
-          contentDigest: '0'.repeat(64),
-        },
-        runtime: { forms: {} },
-      })
-    );
-    const ok = await (service as any).verifyContentManifest(zip);
-    expect(ok).toBeFalse();
-    expect(dialogService.openAlert).toHaveBeenCalledWith(
-      'The document content does not match its manifest and will not be opened.',
-      'Verification failed',
-    );
+  it('verifies manifest entries and blocks mismatches at either document root', async () => {
+    for (const prefix of ['', 'Report/']) {
+      const source = new JSZip(); source.file('index.html', '<p>Original</p>');
+      const manifest = await generateManifest(source);
+      const zip = new JSZip();
+      zip.file(`${prefix}index.html`, '<p>Modified</p>'); zip.file(`${prefix}manifest.json`, JSON.stringify(manifest));
+      expect(await service.loadWdocFromArrayBuffer(await zip.generateAsync({type:'arraybuffer'}))).toBeNull();
+    }
+    expect(htmlProcessor.processHtml).not.toHaveBeenCalled();
+    expect(dialogService.openAlert).toHaveBeenCalledWith('The document content does not match its manifest and will not be opened.', 'Verification failed');
   });
 
   it('loads nested index files within the zip archive', async () => {
@@ -87,9 +70,26 @@ describe('WdocLoaderService', () => {
     expect(result?.html).toContain('processed');
     expect(result?.attachments.length).toBe(0);
     expect(result?.formAnswers.length).toBe(0);
+    expect(htmlProcessor.processHtml).toHaveBeenCalledWith(
+      jasmine.anything(),
+      '<html><body>Nested</body></html>',
+      { defaultTitle: 'WDOC viewer', basePath: '' },
+    );
   });
 
-  it('ignores macOS metadata folders when locating a nested index file', async () => {
+  it('finds attachments alongside a nested index file', async () => {
+    const zip = new JSZip();
+    zip.folder('report')!.file('index.html', '<html><body>Nested</body></html>');
+    zip.folder('report/wdoc-attachment')!.file('photo.jpg', 'image-bytes');
+    const buffer = await zip.generateAsync({ type: 'arraybuffer' });
+    htmlProcessor.processHtml.and.resolveTo({ html: '<body>processed</body>', documentTitle: 'Doc' });
+
+    const result = await service.loadWdocFromArrayBuffer(buffer);
+
+    expect(result?.attachments.map((file) => file.name)).toEqual(['photo.jpg']);
+  });
+
+  it('rejects a second root folder even when it contains OS metadata', async () => {
     const zip = new JSZip();
     zip.file('__MACOSX/._longtable', 'metadata');
     zip.folder('longtable')!.file('index.html', '<html><body>Nested</body></html>');
@@ -102,8 +102,9 @@ describe('WdocLoaderService', () => {
 
     const result = await service.loadWdocFromArrayBuffer(buffer, 'WDOC viewer');
 
-    expect(htmlProcessor.processHtml).toHaveBeenCalled();
-    expect(result?.html).toContain('processed');
+    expect(result).toBeNull();
+    expect(htmlProcessor.processHtml).not.toHaveBeenCalled();
+    expect(dialogService.openAlert).toHaveBeenCalledWith(jasmine.any(String), 'Invalid archive layout');
   });
 
   it('alerts when no index file is present', async () => {
@@ -116,8 +117,8 @@ describe('WdocLoaderService', () => {
 
     expect(result).toBeNull();
     expect(dialogService.openAlert).toHaveBeenCalledWith(
-      'index.html not found in the archive.',
-      'Missing entry',
+      jasmine.any(String),
+      'Invalid archive layout',
     );
   });
 
@@ -179,5 +180,39 @@ describe('WdocLoaderService', () => {
     expect(guessMime('file.js')).toBe('application/javascript');
     expect(guessMime('file.txt')).toBe('text/plain');
     expect(guessMime('file.unknown')).toBeUndefined();
+  });
+
+  it('rejects unsupported or missing manifest versions', async () => {
+    const zip=new JSZip();zip.file('index.html','<p>Document</p>');
+    for (const value of [{manifestVersion:'2.0'}, {meta:{},content:{},runtime:{}}]) {
+      zip.file('manifest.json', JSON.stringify(value));
+      expect(await service.loadWdocFromArrayBuffer(await zip.generateAsync({type:'arraybuffer'}))).toBeNull();
+    }
+    expect(htmlProcessor.processHtml).not.toHaveBeenCalled();
+    expect(dialogService.openAlert).toHaveBeenCalledWith('The document manifest uses an unsupported format and will not be opened.','Unsupported manifest');
+  });
+
+  it('rejects ambiguous and deeply nested entry points', async () => {
+    for (const paths of [['one/index.html','two/index.html'], ['one/index.html','two/'], ['one/index.html','readme.txt'], ['one/nested/index.html'], ['INDEX.HTML'], ['one/Index.html']]) {
+      const zip = new JSZip(); for (const path of paths) zip.file(path, path.endsWith('/') ? '' : '<p>Document</p>', {dir:path.endsWith('/'),createFolders:false});
+      expect(await service.loadWdocFromArrayBuffer(await zip.generateAsync({type:'arraybuffer'}))).withContext(paths.join(',')).toBeNull();
+    }
+    expect(htmlProcessor.processHtml).not.toHaveBeenCalled();
+  });
+
+  it('keeps root index.html authoritative with multiple resource folders', async () => {
+    const zip = new JSZip(); zip.file('index.html','<p>Root</p>');zip.file('images/logo.png','image');zip.file('styles/main.css','body{}');zip.file('resources/index.html','<p>Resource</p>');
+    htmlProcessor.processHtml.and.resolveTo({html:'<p>Root</p>',documentTitle:'Root'});
+    expect(await service.loadWdocFromArrayBuffer(await zip.generateAsync({type:'arraybuffer'}))).not.toBeNull();
+    expect(htmlProcessor.processHtml).toHaveBeenCalledWith(jasmine.anything(), '<p>Root</p>', {defaultTitle:'WDOC viewer',basePath:''});
+  });
+
+  it('rejects malformed UTF-8 in an entry point or manifest before rendering', async () => {
+    const invalid=new Uint8Array([0xc3,0x28]);
+    for (const path of ['index.html','manifest.json']) {
+      const zip=new JSZip();zip.file('index.html','<p>Document</p>');zip.file(path,invalid);
+      expect(await service.loadWdocFromArrayBuffer(await zip.generateAsync({type:'arraybuffer'}))).toBeNull();
+    }
+    expect(htmlProcessor.processHtml).not.toHaveBeenCalled();
   });
 });

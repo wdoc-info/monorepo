@@ -1,0 +1,5 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.wdoc.info/schemas/draft-section.schema.json",
+  "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/draftSection"
+}

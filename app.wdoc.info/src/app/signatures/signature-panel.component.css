@@ -1,0 +1,8 @@
+:host { display: block; }
+.signatures { background: #fff; border-bottom: 1px solid #d6dbe1; padding: 10px 20px; color: #253142; max-height: 55vh; overflow: auto; }
+button, input, select { font: inherit; margin: 4px; padding: 6px 10px; }
+button { cursor: pointer; } button:disabled { cursor: wait; opacity: .6; }
+p { font-size: .9rem; overflow-wrap: anywhere; } article { border-left: 3px solid #879bb4; margin: 10px 0; padding: 4px 12px; }
+pre { max-height: 240px; overflow: auto; padding: 12px; background: #f1f4f8; white-space: pre-wrap; }
+[role=alert] { color: #a22222; } label { display: block; } .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media print { :host { display: none; } }

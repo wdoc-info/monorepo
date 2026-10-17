@@ -1,0 +1,1458 @@
+{
+  "cases": [
+    {
+      "id": "modified-original",
+      "description": "Original bytes invalidate their signature and dependent trusted original bindings.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "index.html",
+          "text": "<p>Changed original</p>"
+        }
+      ],
+      "expected": {
+        "content": "file-modified",
+        "document": [
+          "file-modified"
+        ],
+        "forms": [
+          "wrong-revision"
+        ],
+        "seals": [
+          "wrong-revision"
+        ]
+      }
+    },
+    {
+      "id": "modified-answer",
+      "description": "Answer bytes are protected independently of the original.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "submissions/22222222-2222-4222-8222-222222222222/answers.json",
+          "text": "{}"
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "forms": [
+          "file-modified"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "missing-attachment",
+      "description": "Every enumerated snapshot attachment is required.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-delete",
+          "path": "submissions/22222222-2222-4222-8222-222222222222/attachments/1-proof.txt"
+        }
+      ],
+      "expected": {
+        "forms": [
+          "file-modified"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "wrong-original-nonce",
+      "description": "A wrapper nonce must open the signed original commitment.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/nonce",
+          "value": "4OHi4-Tl5ufo6err7O3u7_Dx8vP09fb3-Pn6-_z9_v8"
+        }
+      ],
+      "expected": {
+        "document": [
+          "wrong-revision"
+        ],
+        "forms": [
+          "wrong-revision"
+        ],
+        "seals": [
+          "wrong-revision"
+        ]
+      }
+    },
+    {
+      "id": "missing-form-nonce",
+      "description": "A commitment-mode form requires its local nonce.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-delete",
+          "pointer": "/signatures/forms/0/nonce"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "wrong-form-reference",
+      "description": "An unrelated wrapper form ID does not resolve this snapshot.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/forms/0/formId",
+          "value": "other"
+        }
+      ],
+      "expected": {
+        "forms": [
+          "wrong-revision",
+          "unsigned"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "missing-seal-nonce",
+      "description": "Seal opening needs its nonce sidecar.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-delete",
+          "path": "seals/55555555-5555-4555-8555-555555555555.nonce"
+        }
+      ],
+      "expected": {
+        "content": "file-modified",
+        "document": [
+          "file-modified"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "modified-seal-nonce",
+      "description": "Seal nonce is bound by the commitment.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "seals/55555555-5555-4555-8555-555555555555.nonce",
+          "text": "4OHi4-Tl5ufo6err7O3u7_Dx8vP09fb3-Pn6-_z9_v8"
+        }
+      ],
+      "expected": {
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "orphan-seal-nonce",
+      "description": "A nonce file without a JWS violates seal namespace integrity.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-delete",
+          "path": "seals/55555555-5555-4555-8555-555555555555.jws"
+        }
+      ],
+      "expected": {
+        "content": "file-modified",
+        "document": [
+          "file-modified"
+        ],
+        "seals": []
+      }
+    },
+    {
+      "id": "extra-runtime-file",
+      "description": "Only a seal covers arbitrary runtime membership.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "wdoc-form/note.txt",
+          "text": "Local draft"
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "forms": [
+          "valid-trusted"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "extra-original-file",
+      "description": "The original inventory is complete, not selective.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "extra.txt",
+          "text": "Unlisted original"
+        }
+      ],
+      "expected": {
+        "content": "file-modified",
+        "document": [
+          "file-modified"
+        ]
+      }
+    },
+    {
+      "id": "manifest-whitespace",
+      "description": "Canonical scope is stable but a seal covers actual manifest bytes.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-format",
+          "style": "pretty"
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "forms": [
+          "valid-trusted"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "informative-submission-metadata",
+      "description": "createdAt and replaces are outside the form commitment.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/submissions/approval/0/createdAt",
+          "value": "2026-01-04T00:00:00.000Z"
+        },
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/submissions/approval/0/replaces",
+          "value": "previous-submission"
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "forms": [
+          "valid-trusted"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "modified-protected-metadata",
+      "description": "All metadata members are in the protected scope.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/meta/docTitle",
+          "value": "Changed title"
+        }
+      ],
+      "expected": {
+        "document": [
+          "wrong-revision"
+        ],
+        "forms": [
+          "wrong-revision"
+        ],
+        "seals": [
+          "wrong-revision"
+        ]
+      }
+    },
+    {
+      "id": "removed-form-wrapper",
+      "description": "A remaining submission with no wrapper is unsigned.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/forms",
+          "value": []
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "forms": [
+          "unsigned"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "bad-signature-math",
+      "description": "A changed ES256 signature does not verify.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/forms/0/jws",
+          "value": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2MtZm9ybStqd3MiLCJraWQiOiJodHRwczovL3NpZy5leGFtcGxlLnRlc3QvaW5mby9wbGF0Zm9ybS0xIn0.eyJkb2N1bWVudENvbW1pdG1lbnQiOiJLNnZKTUpuR2RCVkVpTTJ4NzNzNG9ON3I1QURvb0ZtNUpOblBNUFhrMHJRIiwiZXZpZGVuY2UiOnsiY29uc2VudCI6Indkb2Mtc2lnbi12MSIsIm1ldGhvZCI6ImF1dGhlbnRpY2F0ZWQtc2Vzc2lvbiIsInNjb3BlIjoiY29tbWl0bWVudC1vbmx5In0sIm1vZGUiOiJ3ZG9jLWF0dGVzdGF0aW9uIiwicHJvb2ZNb2RlIjoiZGlnZXN0LW9ubHkiLCJzaWduZWRBdCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDUuMDAwWiIsInNpZ25lciI6eyJkaXNwbGF5TmFtZSI6ImFsaWNlQGV4YW1wbGUudGVzdCIsInVzZXJJZCI6ImFsaWNlIn0sInN1Ym1pc3Npb25Db21taXRtZW50IjoiaWZSZndRVy1nRG40cUthUl94cVQ4eXpkd0hIQ0JsSkVBc1hQOTd5OHlLWSIsInR5cGUiOiJ3ZG9jLWZvcm0tc2lnbmF0dXJlIn0.AFWluqV1hIKQIj5EUi4jwhjRgmOXNTPBvqMrD_gmOwGQRQMbhTCUknlUHPD2ijmJC6XVMvVm1CcCXUc9FWv-jg"
+        }
+      ],
+      "expected": {
+        "forms": [
+          "invalid-signature"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "forbidden-algorithm",
+      "description": "Reject algorithm before trusting signature claims.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/jws",
+          "value": "eyJhbGciOiJub25lIiwidHlwIjoid2RvYy1kb2N1bWVudCtqd3MiLCJraWQiOiJodHRwczovL3NpZy5leGFtcGxlLnRlc3QvaW5mby9wbGF0Zm9ybS0xIn0.eyJkb2N1bWVudENvbW1pdG1lbnQiOiJLNnZKTUpuR2RCVkVpTTJ4NzNzNG9ON3I1QURvb0ZtNUpOblBNUFhrMHJRIiwiZXZpZGVuY2UiOnsiY29uc2VudCI6Indkb2Mtc2lnbi12MSIsIm1ldGhvZCI6ImF1dGhlbnRpY2F0ZWQtc2Vzc2lvbiIsInNjb3BlIjoiY29tbWl0bWVudC1vbmx5In0sInByb29mTW9kZSI6ImRpZ2VzdC1vbmx5Iiwic2lnbmVkQXQiOiIyMDI2LTAxLTAyVDAzOjA0OjA1LjAwMFoiLCJzaWduZXIiOnsiZGlzcGxheU5hbWUiOiJhbGljZUBleGFtcGxlLnRlc3QiLCJ1c2VySWQiOiJhbGljZSJ9LCJ0eXBlIjoid2RvYy1kb2N1bWVudC1zaWduYXR1cmUifQ.wmoLWLA68BGnB4cdgwj6KG87aJr40oMibKWkbxh6lnzGydV0g2oz0zNhTExhKpgZgV_elNE_oCQalyyeM4IgMw"
+        }
+      ],
+      "expected": {
+        "document": [
+          "key-unauthorized"
+        ]
+      }
+    },
+    {
+      "id": "wrong-jws-type",
+      "description": "Document/form/seal contexts are not interchangeable.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/jws",
+          "value": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2MtZm9ybStqd3MiLCJraWQiOiJodHRwczovL3NpZy5leGFtcGxlLnRlc3QvaW5mby9wbGF0Zm9ybS0xIn0.eyJkb2N1bWVudENvbW1pdG1lbnQiOiJLNnZKTUpuR2RCVkVpTTJ4NzNzNG9ON3I1QURvb0ZtNUpOblBNUFhrMHJRIiwiZXZpZGVuY2UiOnsiY29uc2VudCI6Indkb2Mtc2lnbi12MSIsIm1ldGhvZCI6ImF1dGhlbnRpY2F0ZWQtc2Vzc2lvbiIsInNjb3BlIjoiY29tbWl0bWVudC1vbmx5In0sInByb29mTW9kZSI6ImRpZ2VzdC1vbmx5Iiwic2lnbmVkQXQiOiIyMDI2LTAxLTAyVDAzOjA0OjA1LjAwMFoiLCJzaWduZXIiOnsiZGlzcGxheU5hbWUiOiJhbGljZUBleGFtcGxlLnRlc3QiLCJ1c2VySWQiOiJhbGljZSJ9LCJ0eXBlIjoid2RvYy1kb2N1bWVudC1zaWduYXR1cmUifQ.wmoLWLA68BGnB4cdgwj6KG87aJr40oMibKWkbxh6lnzGydV0g2oz0zNhTExhKpgZgV_elNE_oCQalyyeM4IgMw"
+        }
+      ],
+      "expected": {
+        "document": [
+          "key-unauthorized"
+        ]
+      }
+    },
+    {
+      "id": "unknown-proof-mode",
+      "description": "Only the declared commitment profile is accepted.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/jws",
+          "value": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2MtZG9jdW1lbnQrandzIiwia2lkIjoiaHR0cHM6Ly9zaWcuZXhhbXBsZS50ZXN0L2luZm8vcGxhdGZvcm0tMSJ9.eyJkb2N1bWVudENvbW1pdG1lbnQiOiJLNnZKTUpuR2RCVkVpTTJ4NzNzNG9ON3I1QURvb0ZtNUpOblBNUFhrMHJRIiwiZXZpZGVuY2UiOnsiY29uc2VudCI6Indkb2Mtc2lnbi12MSIsIm1ldGhvZCI6ImF1dGhlbnRpY2F0ZWQtc2Vzc2lvbiIsInNjb3BlIjoiY29tbWl0bWVudC1vbmx5In0sInByb29mTW9kZSI6ImZ1dHVyZSIsInNpZ25lZEF0IjoiMjAyNi0wMS0wMlQwMzowNDowNS4wMDBaIiwic2lnbmVyIjp7ImRpc3BsYXlOYW1lIjoiYWxpY2VAZXhhbXBsZS50ZXN0IiwidXNlcklkIjoiYWxpY2UifSwidHlwZSI6Indkb2MtZG9jdW1lbnQtc2lnbmF0dXJlIn0._9DyokL2Tfd_tu5a7hKPbDS6sG5YmVEcrnuuVJwpeVPMsITTKfT64FNO82nne_Bo0dYddaNhfqu-wF1WeH0hXQ"
+        }
+      ],
+      "expected": {
+        "document": [
+          "invalid-signature"
+        ]
+      }
+    },
+    {
+      "id": "extra-payload-field",
+      "description": "New commitment payloads are closed.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/jws",
+          "value": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2MtZG9jdW1lbnQrandzIiwia2lkIjoiaHR0cHM6Ly9zaWcuZXhhbXBsZS50ZXN0L2luZm8vcGxhdGZvcm0tMSJ9.eyJkb2NJZCI6IjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsImRvY3VtZW50Q29tbWl0bWVudCI6Iks2dkpNSm5HZEJWRWlNMng3M3M0b043cjVBRG9vRm01Sk5uUE1QWGswclEiLCJldmlkZW5jZSI6eyJjb25zZW50Ijoid2RvYy1zaWduLXYxIiwibWV0aG9kIjoiYXV0aGVudGljYXRlZC1zZXNzaW9uIiwic2NvcGUiOiJjb21taXRtZW50LW9ubHkifSwicHJvb2ZNb2RlIjoiZGlnZXN0LW9ubHkiLCJzaWduZWRBdCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDUuMDAwWiIsInNpZ25lciI6eyJkaXNwbGF5TmFtZSI6ImFsaWNlQGV4YW1wbGUudGVzdCIsInVzZXJJZCI6ImFsaWNlIn0sInR5cGUiOiJ3ZG9jLWRvY3VtZW50LXNpZ25hdHVyZSJ9.ydc0aCNG_lVeZcVybEEPaRvxENktoJpqKAyliBoQio3NJXfRU7ZeSgCiiEg272j2ZZjWw30_SXLXt0kwrQq5_Q"
+        }
+      ],
+      "expected": {
+        "document": [
+          "invalid-signature"
+        ]
+      }
+    },
+    {
+      "id": "missing-key",
+      "description": "Unavailable keys never imply success.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "registry-set",
+          "pointer": "/keys",
+          "value": []
+        }
+      ],
+      "expected": {
+        "document": [
+          "key-unavailable"
+        ],
+        "forms": [
+          "key-unavailable"
+        ],
+        "seals": [
+          "key-unavailable"
+        ]
+      }
+    },
+    {
+      "id": "untrusted-original",
+      "description": "Mathematical validity is separate from original identity trust.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "registry-set",
+          "pointer": "/keys/0/trusted",
+          "value": false
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-untrusted"
+        ],
+        "forms": [
+          "wrong-revision"
+        ],
+        "seals": [
+          "wrong-revision"
+        ]
+      }
+    },
+    {
+      "id": "retired-key",
+      "description": "Retired public keys still verify old attestations.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "registry-set",
+          "pointer": "/keys/0/status",
+          "value": "retired"
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "forms": [
+          "valid-trusted"
+        ],
+        "seals": [
+          "valid-trusted"
+        ]
+      }
+    },
+    {
+      "id": "revoked-key",
+      "description": "Current revocation policy applies regardless of signedAt.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "registry-set",
+          "pointer": "/keys/0/status",
+          "value": "revoked"
+        }
+      ],
+      "expected": {
+        "document": [
+          "key-unauthorized"
+        ],
+        "forms": [
+          "key-unauthorized"
+        ],
+        "seals": [
+          "key-unauthorized"
+        ]
+      }
+    },
+    {
+      "id": "expired-key",
+      "description": "Declared signing time cannot bypass current expiry.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "registry-set",
+          "pointer": "/keys/0/expiresAt",
+          "value": "2000-01-01T00:00:00.000Z"
+        }
+      ],
+      "expected": {
+        "document": [
+          "key-unauthorized"
+        ]
+      }
+    },
+    {
+      "id": "not-yet-valid-key",
+      "description": "Keys cannot verify before their policy start time.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "registry-set",
+          "pointer": "/keys/0/notBefore",
+          "value": "9999-01-01T00:00:00.000Z"
+        }
+      ],
+      "expected": {
+        "document": [
+          "key-unauthorized"
+        ]
+      }
+    },
+    {
+      "id": "wrapper-id-is-not-claim",
+      "description": "Changing a local locator does not change the authenticated original claims.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/signatureId",
+          "value": "different-local-id"
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "forms": [
+          "valid-trusted"
+        ],
+        "seals": [
+          "archive-changed"
+        ]
+      }
+    },
+    {
+      "id": "removed-last-seal",
+      "description": "Deleting the only pair leaves no completeness evidence.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-delete",
+          "path": "seals/55555555-5555-4555-8555-555555555555.jws"
+        },
+        {
+          "op": "file-delete",
+          "path": "seals/55555555-5555-4555-8555-555555555555.nonce"
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "forms": [
+          "valid-trusted"
+        ],
+        "seals": []
+      }
+    },
+    {
+      "id": "rolled-back-seal-suffix",
+      "description": "A retained older snapshot cannot detect a discarded newer seal pair.",
+      "base": "two-seals",
+      "operations": [
+        {
+          "op": "file-delete",
+          "path": "seals/88888888-8888-4888-8888-888888888888.jws"
+        },
+        {
+          "op": "file-delete",
+          "path": "seals/88888888-8888-4888-8888-888888888888.nonce"
+        }
+      ],
+      "expected": {
+        "seals": [
+          "valid-trusted"
+        ]
+      }
+    },
+    {
+      "id": "damaged-historical-original",
+      "description": "Historical form binding requires intact old originals.",
+      "base": "revised",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "revisions/yQHi5nyGFVmX2bUTArXorWSm63gZKl0Yi2pv_CvbCPU/files/index.html",
+          "text": "<p>Changed old bytes</p>"
+        }
+      ],
+      "expected": {
+        "document": [
+          "valid-trusted"
+        ],
+        "revisions": [
+          "file-modified"
+        ],
+        "forms": [
+          "wrong-revision"
+        ]
+      }
+    },
+    {
+      "id": "unsafe-revision-map",
+      "description": "Historical paths must equal the digest-derived location.",
+      "base": "revised",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/revisions/0/files/index.html",
+          "value": "revisions/wrong/files/index.html"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "unsupported-manifest",
+      "description": "Core version-1.0 verifier does not accept other versions.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/manifestVersion",
+          "value": "2.0"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "unknown-manifest-member",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/unexpected",
+          "value": true
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "metadata-wrong-type",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/meta/docTitle",
+          "value": 3
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "metadata-invalid-calendar-date",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/meta/createdAt",
+          "value": "2026-02-30T00:00:00Z"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "runtime-invalid-date",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/updatedAt",
+          "value": "yesterday"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "array-instead-of-map",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/submissions",
+          "value": []
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "closed-wrapper",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/extra",
+          "value": true
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "duplicate-signature-ids",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/forms/0/signatureId",
+          "value": "33333333-3333-4333-8333-333333333333"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "noncanonical-local-nonce",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/nonce",
+          "value": "BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "invalid-submission-date",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/submissions/approval/0/createdAt",
+          "value": "2026-01-01"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "incomplete-historical-map",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "revised",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/revisions/0/files",
+          "value": {}
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "historical-wrong-document",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "revised",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/revisions/0/scope/meta/docId",
+          "value": "other-document"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "invalid-draft-section",
+      "description": "Strict reader rejects a structurally invalid or ambiguous manifest.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/runtime/forms/default",
+          "value": {}
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "duplicate-protected-header",
+      "description": "Protected header names are unique after escape decoding.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/jws",
+          "value": "eyJhbGciOiJub25lIiwiYWxnIjoiRVMyNTYiLCJ0eXAiOiJ3ZG9jLWRvY3VtZW50K2p3cyIsImtpZCI6Imh0dHBzOi8vc2lnLmV4YW1wbGUudGVzdC9pbmZvL3BsYXRmb3JtLTEifQ.eyJkb2N1bWVudENvbW1pdG1lbnQiOiJLNnZKTUpuR2RCVkVpTTJ4NzNzNG9ON3I1QURvb0ZtNUpOblBNUFhrMHJRIiwiZXZpZGVuY2UiOnsiY29uc2VudCI6Indkb2Mtc2lnbi12MSIsIm1ldGhvZCI6ImF1dGhlbnRpY2F0ZWQtc2Vzc2lvbiIsInNjb3BlIjoiY29tbWl0bWVudC1vbmx5In0sInByb29mTW9kZSI6ImRpZ2VzdC1vbmx5Iiwic2lnbmVkQXQiOiIyMDI2LTAxLTAyVDAzOjA0OjA1LjAwMFoiLCJzaWduZXIiOnsiZGlzcGxheU5hbWUiOiJhbGljZUBleGFtcGxlLnRlc3QiLCJ1c2VySWQiOiJhbGljZSJ9LCJ0eXBlIjoid2RvYy1kb2N1bWVudC1zaWduYXR1cmUifQ.cTR_MdHdjVE3jG2i_nix_wRzJ3budTEy-J1VJobzw4HWicd5nqloRZ4G8TNPcMndQfLiO0ULlN15UUWptR4esA"
+        }
+      ],
+      "expected": {
+        "document": [
+          "invalid-signature"
+        ]
+      }
+    },
+    {
+      "id": "unused-header-extension",
+      "description": "Closed headers reject even an otherwise unused extension.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/jws",
+          "value": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2MtZG9jdW1lbnQrandzIiwia2lkIjoiaHR0cHM6Ly9zaWcuZXhhbXBsZS50ZXN0L2luZm8vcGxhdGZvcm0tMSIsInVudXNlZCI6dHJ1ZX0.eyJkb2N1bWVudENvbW1pdG1lbnQiOiJLNnZKTUpuR2RCVkVpTTJ4NzNzNG9ON3I1QURvb0ZtNUpOblBNUFhrMHJRIiwiZXZpZGVuY2UiOnsiY29uc2VudCI6Indkb2Mtc2lnbi12MSIsIm1ldGhvZCI6ImF1dGhlbnRpY2F0ZWQtc2Vzc2lvbiIsInNjb3BlIjoiY29tbWl0bWVudC1vbmx5In0sInByb29mTW9kZSI6ImRpZ2VzdC1vbmx5Iiwic2lnbmVkQXQiOiIyMDI2LTAxLTAyVDAzOjA0OjA1LjAwMFoiLCJzaWduZXIiOnsiZGlzcGxheU5hbWUiOiJhbGljZUBleGFtcGxlLnRlc3QiLCJ1c2VySWQiOiJhbGljZSJ9LCJ0eXBlIjoid2RvYy1kb2N1bWVudC1zaWduYXR1cmUifQ.pPU6MuFrwnVbvjwN_8fzqHW8ivtuy252_sbpjO5OOuaKl7cXcWltU3UQuG1gEXPhq3VMDTF3Ky6zI2LG8X9qNw"
+        }
+      ],
+      "expected": {
+        "document": [
+          "key-unauthorized"
+        ]
+      }
+    },
+    {
+      "id": "invalid-signed-calendar-date",
+      "description": "Valid signature math cannot authenticate an invalid date field.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/jws",
+          "value": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2MtZG9jdW1lbnQrandzIiwia2lkIjoiaHR0cHM6Ly9zaWcuZXhhbXBsZS50ZXN0L2luZm8vcGxhdGZvcm0tMSJ9.eyJkb2N1bWVudENvbW1pdG1lbnQiOiJLNnZKTUpuR2RCVkVpTTJ4NzNzNG9ON3I1QURvb0ZtNUpOblBNUFhrMHJRIiwiZXZpZGVuY2UiOnsiY29uc2VudCI6Indkb2Mtc2lnbi12MSIsIm1ldGhvZCI6ImF1dGhlbnRpY2F0ZWQtc2Vzc2lvbiIsInNjb3BlIjoiY29tbWl0bWVudC1vbmx5In0sInByb29mTW9kZSI6ImRpZ2VzdC1vbmx5Iiwic2lnbmVkQXQiOiIyMDI2LTAyLTMwVDAwOjAwOjAwWiIsInNpZ25lciI6eyJkaXNwbGF5TmFtZSI6ImFsaWNlQGV4YW1wbGUudGVzdCIsInVzZXJJZCI6ImFsaWNlIn0sInR5cGUiOiJ3ZG9jLWRvY3VtZW50LXNpZ25hdHVyZSJ9.KWEaqmzN73BEhUPUyOTinuljnaSr8oWLWIKaAiapkDjBlK02i6xfi1UCgI9K9w_BkBNm3BymZhISckJnGYKBrw"
+        }
+      ],
+      "expected": {
+        "document": [
+          "invalid-signature"
+        ]
+      }
+    },
+    {
+      "id": "invalid-manifest-utf8",
+      "description": "Reject replacement decoding before parsing or verification.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "manifest.json",
+          "base64": "wyg="
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "invalid-seal-utf8",
+      "description": "Malformed JWS text is a failed individual signature.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "seals/55555555-5555-4555-8555-555555555555.jws",
+          "base64": "wyg="
+        }
+      ],
+      "expected": {
+        "seals": [
+          "invalid-signature"
+        ]
+      }
+    },
+    {
+      "id": "nonce-line-break",
+      "description": "Canonical nonce strings cannot contain even a final line break.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/nonce",
+          "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    },
+    {
+      "id": "unsupported-inventory-document-payload",
+      "description": "Valid ES256 mathematics cannot substitute an undeclared payload shape for the required commitment-only profile.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/document/0/jws",
+          "value": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2MtZG9jdW1lbnQrandzIiwia2lkIjoiaHR0cHM6Ly9zaWcuZXhhbXBsZS50ZXN0L2luZm8vcGxhdGZvcm0tMSJ9.eyJkb2NJZCI6IjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsImRvY3VtZW50RGlnZXN0IjoieVFIaTVueUdGVm1YMmJVVEFyWG9yV1NtNjNnWktsMFlpMnB2X0N2YkNQVSIsInNpZ25lZEF0IjoiMjAyNi0wMS0wMlQwMzowNDowNS4wMDBaIiwidHlwZSI6Indkb2MtZG9jdW1lbnQtc2lnbmF0dXJlIn0.hkEemLzFFitxW90pnivI8HmTSnSSx3VrgNDxYl_zpQzfobApddqPDClQXm85FnLCrrk7E6zNQ8vxZ2CF_baN9Q"
+        }
+      ],
+      "expected": {
+        "document": [
+          "invalid-signature"
+        ]
+      }
+    },
+    {
+      "id": "unsupported-inventory-form-payload",
+      "description": "Valid ES256 mathematics cannot substitute an undeclared payload shape for the required commitment-only profile.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "manifest-set",
+          "pointer": "/signatures/forms/0/jws",
+          "value": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2MtZm9ybStqd3MiLCJraWQiOiJodHRwczovL3NpZy5leGFtcGxlLnRlc3QvaW5mby9wbGF0Zm9ybS0xIn0.eyJkb2NJZCI6IjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsImRvY3VtZW50RGlnZXN0IjoieVFIaTVueUdGVm1YMmJVVEFyWG9yV1NtNjNnWktsMFlpMnB2X0N2YkNQVSIsImV2aWRlbmNlIjp7ImNvbnNlbnQiOiJ3ZG9jLXNpZ24tdjEiLCJtZXRob2QiOiJhdXRoZW50aWNhdGVkLXNlc3Npb24ifSwiZmlsZXMiOnsic3VibWlzc2lvbnMvMjIyMjIyMjItMjIyMi00MjIyLTgyMjItMjIyMjIyMjIyMjIyL2Fuc3dlcnMuanNvbiI6Imx1clJHcm4yQkRSZWUtRVdjUTlGZ0NSNDZlVUlNNkNqQ0ZpVlJTLUptWFEiLCJzdWJtaXNzaW9ucy8yMjIyMjIyMi0yMjIyLTQyMjItODIyMi0yMjIyMjIyMjIyMjIvYXR0YWNobWVudHMvMS1wcm9vZi50eHQiOiJRRk1kRnFhTVM5X3gzd0lhV0xCVXY5dzlDLUx4enRONm5rLXdqeXZzMHNRIn0sImZvcm1JZCI6ImFwcHJvdmFsIiwibW9kZSI6Indkb2MtYXR0ZXN0YXRpb24iLCJzaWduZWRBdCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDUuMDAwWiIsInNpZ25lciI6eyJkaXNwbGF5TmFtZSI6ImFsaWNlQGV4YW1wbGUudGVzdCIsInVzZXJJZCI6ImFsaWNlIn0sInN1Ym1pc3Npb25JZCI6IjIyMjIyMjIyLTIyMjItNDIyMi04MjIyLTIyMjIyMjIyMjIyMiIsInR5cGUiOiJ3ZG9jLWZvcm0tc2lnbmF0dXJlIn0._dZkq_QCWBEEbFL1cjCam1myPYEIHD07MfEKgSn-_IaEUh3Vurs5ON2G92l5D4NNJA2vAW8-zcrthgg3Trt11A"
+        }
+      ],
+      "expected": {
+        "forms": [
+          "invalid-signature"
+        ]
+      }
+    },
+    {
+      "id": "unsupported-inventory-seal-payload",
+      "description": "Valid ES256 mathematics cannot substitute an undeclared payload shape for the required commitment-only profile.",
+      "base": "sealed",
+      "operations": [
+        {
+          "op": "file-set",
+          "path": "seals/55555555-5555-4555-8555-555555555555.jws",
+          "text": "eyJhbGciOiJFUzI1NiIsInR5cCI6Indkb2Mtc2VhbCtqd3MiLCJraWQiOiJodHRwczovL3NpZy5leGFtcGxlLnRlc3QvaW5mby9wbGF0Zm9ybS0xIn0.eyJkb2NJZCI6IjExMTExMTExLTExMTEtNDExMS04MTExLTExMTExMTExMTExMSIsImZpbGVzIjp7ImluZGV4Lmh0bWwiOiJXdmpqd3hfM29yOUtYUTBydnRpN285bFhWWGllaTkwUlNhYUlYVlUyY1BZIiwibWFuaWZlc3QuanNvbiI6ImtOSlZ3dTNCc1FWMmNEek84dGRUeDNqenlCNFd5eXctZ2lRV1ZqdVlLXzQiLCJzdWJtaXNzaW9ucy8yMjIyMjIyMi0yMjIyLTQyMjItODIyMi0yMjIyMjIyMjIyMjIvYW5zd2Vycy5qc29uIjoibHVyUkdybjJCRFJlZS1FV2NROUZnQ1I0NmVVSU02Q2pDRmlWUlMtSm1YUSIsInN1Ym1pc3Npb25zLzIyMjIyMjIyLTIyMjItNDIyMi04MjIyLTIyMjIyMjIyMjIyMi9hdHRhY2htZW50cy8xLXByb29mLnR4dCI6IlFGTWRGcWFNUzlfeDN3SWFXTEJVdjl3OUMtTHh6dE42bmstd2p5dnMwc1EiLCJ3ZG9jLWFzc2V0cy9zdHlsZS5jc3MiOiJjeUhXemZOZUlBVlA5bGxuS1l1ZmpMcVZZd1VnV2NzMmtSQVVFUnJzaHE0In0sInByZXZpb3VzU2VhbHMiOnt9LCJzaWduZWRBdCI6IjIwMjYtMDEtMDJUMDM6MDQ6MDUuMDAwWiIsInR5cGUiOiJ3ZG9jLXNlYWwtc2lnbmF0dXJlIn0.i3byl4CIJ5whfiN0Y1ejdYOFndX3H8hEvfMycmkCIQ-7B8Put3i0T2TdHtJ2UwfpxnCUl2PxGTeOx8zkIQZzOw"
+        }
+      ],
+      "expected": {
+        "seals": [
+          "invalid-signature"
+        ]
+      }
+    },
+    {
+      "id": "missing-manifest-version",
+      "description": "A present manifest must declare the current version; it is never replaced with an unsigned candidate.",
+      "base": "unsigned",
+      "operations": [
+        {
+          "op": "manifest-delete",
+          "pointer": "/manifestVersion"
+        }
+      ],
+      "expected": {
+        "error": true
+      }
+    }
+  ],
+  "json": [
+    {
+      "id": "valid-unique",
+      "text": "{\"a\":1,\"b\":2}",
+      "valid": true
+    },
+    {
+      "id": "duplicate",
+      "text": "{\"a\":1,\"a\":2}",
+      "valid": false
+    },
+    {
+      "id": "escaped-duplicate",
+      "text": "{\"a\":1,\"\\u0061\":2}",
+      "valid": false
+    },
+    {
+      "id": "lone-surrogate",
+      "text": "\"\\ud800\"",
+      "valid": false
+    },
+    {
+      "id": "non-finite",
+      "text": "1e400",
+      "valid": false
+    },
+    {
+      "id": "depth-64",
+      "text": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "valid": true
+    },
+    {
+      "id": "depth-65",
+      "text": "[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[[0]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]",
+      "valid": false
+    }
+  ],
+  "paths": [
+    {
+      "id": "path-1",
+      "path": "index.html",
+      "valid": true
+    },
+    {
+      "id": "path-2",
+      "path": "wdoc-assets/terms 2026.pdf",
+      "valid": true
+    },
+    {
+      "id": "path-3",
+      "path": "a/😀.txt",
+      "valid": true
+    },
+    {
+      "id": "path-4",
+      "path": "/index.html",
+      "valid": false
+    },
+    {
+      "id": "path-5",
+      "path": "./index.html",
+      "valid": false
+    },
+    {
+      "id": "path-6",
+      "path": "a/../b",
+      "valid": false
+    },
+    {
+      "id": "path-7",
+      "path": "a//b",
+      "valid": false
+    },
+    {
+      "id": "path-8",
+      "path": "a%2fb",
+      "valid": false
+    },
+    {
+      "id": "path-9",
+      "path": "a\\b",
+      "valid": false
+    },
+    {
+      "id": "path-10",
+      "path": "a?b",
+      "valid": false
+    },
+    {
+      "id": "path-11",
+      "path": "a#b",
+      "valid": false
+    },
+    {
+      "id": "path-12",
+      "path": "C:drive",
+      "valid": false
+    },
+    {
+      "id": "path-13",
+      "path": "a/constructor/b",
+      "valid": false
+    },
+    {
+      "id": "path-14",
+      "path": "__proto__",
+      "valid": false
+    },
+    {
+      "id": "path-15",
+      "path": "a\u0000b",
+      "valid": false
+    },
+    {
+      "id": "path-16",
+      "path": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "valid": true
+    },
+    {
+      "id": "path-17",
+      "path": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "valid": false
+    },
+    {
+      "id": "path-18",
+      "path": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "valid": true
+    },
+    {
+      "id": "path-19",
+      "path": "😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀😀",
+      "valid": false
+    },
+    {
+      "id": "unicode-line-separator",
+      "path": "assets/a b.txt",
+      "valid": true
+    }
+  ],
+  "zip": [
+    {
+      "id": "stored",
+      "operation": "valid",
+      "valid": true
+    },
+    {
+      "id": "deflate",
+      "operation": "valid-deflate",
+      "valid": true
+    },
+    {
+      "id": "traversal",
+      "operation": "unsafe-name",
+      "name": "../index.html",
+      "valid": false
+    },
+    {
+      "id": "encoded-name",
+      "operation": "unsafe-name",
+      "name": "a%2fb",
+      "valid": false
+    },
+    {
+      "id": "duplicate-name",
+      "operation": "duplicate",
+      "valid": false
+    },
+    {
+      "id": "encrypted",
+      "operation": "encrypted",
+      "valid": false
+    },
+    {
+      "id": "truncated-eocd",
+      "operation": "truncated",
+      "valid": false
+    },
+    {
+      "id": "trailing-bytes",
+      "operation": "trailing",
+      "valid": false
+    },
+    {
+      "id": "excessive-declared-size",
+      "operation": "large-size",
+      "valid": false
+    },
+    {
+      "id": "zip64-extra",
+      "operation": "zip64-extra",
+      "valid": false
+    },
+    {
+      "id": "unicode-override",
+      "operation": "unicode-override",
+      "valid": false
+    },
+    {
+      "id": "local-header-alias",
+      "operation": "local-name",
+      "valid": false
+    },
+    {
+      "id": "unsupported-method",
+      "operation": "method",
+      "valid": false
+    },
+    {
+      "id": "crc-mismatch",
+      "operation": "crc",
+      "valid": false
+    },
+    {
+      "id": "dishonest-expansion",
+      "operation": "underreported-size",
+      "valid": false
+    },
+    {
+      "id": "streamed-descriptor",
+      "operation": "valid-streamed",
+      "valid": true
+    }
+  ],
+  "registries": [
+    {
+      "id": "valid-policy",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "platform",
+          "owner": "Example Test Authority"
+        },
+        {
+          "kid": "https://identity.example.test/info/alice-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "fPJ7GI0DT36KUjgDBLUaw8CJaeJ38hs1pgtI_EdmmXg",
+            "y": "B3dVENuO0EApPZrGn3Qw27p9reY86YIpngS3nSJ4c9E"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "personal",
+          "owner": "Alice Example",
+          "userId": "alice"
+        }
+      ],
+      "allowedOrigins": [
+        "https://sig.example.test",
+        "https://identity.example.test"
+      ],
+      "valid": true
+    },
+    {
+      "id": "duplicate-kids",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "platform",
+          "owner": "Example Test Authority"
+        },
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "platform",
+          "owner": "Example Test Authority"
+        }
+      ],
+      "allowedOrigins": [
+        "https://sig.example.test",
+        "https://identity.example.test"
+      ],
+      "valid": false
+    },
+    {
+      "id": "truthy-trust-string",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU"
+          },
+          "status": "active",
+          "trusted": "true",
+          "authority": "platform",
+          "owner": "Example Test Authority"
+        }
+      ],
+      "allowedOrigins": [
+        "https://sig.example.test",
+        "https://identity.example.test"
+      ],
+      "valid": false
+    },
+    {
+      "id": "out-of-policy-origin",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "platform",
+          "owner": "Example Test Authority"
+        }
+      ],
+      "allowedOrigins": [
+        "https://other.example.test"
+      ],
+      "valid": false
+    },
+    {
+      "id": "private-parameter",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU",
+            "d": ""
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "platform",
+          "owner": "Example Test Authority"
+        }
+      ],
+      "allowedOrigins": [
+        "https://sig.example.test",
+        "https://identity.example.test"
+      ],
+      "valid": false
+    },
+    {
+      "id": "wrong-key-usage",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU",
+            "use": "enc"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "platform",
+          "owner": "Example Test Authority"
+        }
+      ],
+      "allowedOrigins": [
+        "https://sig.example.test",
+        "https://identity.example.test"
+      ],
+      "valid": false
+    },
+    {
+      "id": "missing-personal-user",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "personal",
+          "owner": "Example Test Authority"
+        }
+      ],
+      "allowedOrigins": [
+        "https://sig.example.test",
+        "https://identity.example.test"
+      ],
+      "valid": false
+    },
+    {
+      "id": "invalid-key-date",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+            "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "platform",
+          "owner": "Example Test Authority",
+          "notBefore": "2026-01-01"
+        }
+      ],
+      "allowedOrigins": [
+        "https://sig.example.test",
+        "https://identity.example.test"
+      ],
+      "valid": false
+    },
+    {
+      "id": "invalid-curve-point",
+      "keys": [
+        {
+          "kid": "https://sig.example.test/info/platform-1",
+          "jwk": {
+            "kty": "EC",
+            "crv": "P-256",
+            "x": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "y": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+          },
+          "status": "active",
+          "trusted": true,
+          "authority": "platform",
+          "owner": "Example Test Authority"
+        }
+      ],
+      "allowedOrigins": [
+        "https://sig.example.test",
+        "https://identity.example.test"
+      ],
+      "valid": false
+    }
+  ]
+}

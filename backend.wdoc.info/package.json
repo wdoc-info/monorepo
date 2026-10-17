@@ -6,13 +6,19 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
-    "test": "bun test"
+    "test": "bun test",
+    "verify:wdoc": "bun src/signatures/verify.ts",
+    "keys:generate": "bun src/signatures/keygen.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@aws-sdk/client-ses": "^3.749.0",
     "@hono/zod-validator": "^0.6.0",
+    "canonicalize": "^2.1.0",
     "hono": "^4.6.10",
     "jose": "^5.9.6",
+    "jszip": "^3.10.1",
+    "parse5": "^7.3.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
