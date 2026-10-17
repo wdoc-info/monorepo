@@ -28,6 +28,9 @@ const hash = (b: Uint8Array | string): string => createHash('sha256').update(b).
 const summary = (r: any) => ({ documentDigest: r.documentDigest, content: r.content.status, document: r.document.map((c: any) => c.status), forms: r.forms.map((c: any) => c.status), revisions: r.revisions.map((c: any) => c.status), seals: r.seals.map((c: any) => c.status) });
 let assertions = 0;
 function equal(actual: unknown, expected: unknown, label: string) { assert.deepEqual(actual, expected, label); assertions++; }
+function equalInventory(actual: Record<string, string>, expected: Record<string, string>, label: string) {
+  equal({ ...actual }, { ...expected }, label);
+}
 function schema(name: string, value: unknown) {
   const validate = ajv.getSchema(schemaBase + name);
   assert.ok(validate, `Missing schema ${name}`);
@@ -43,6 +46,20 @@ new KeyResolverService(registry.keys, registry.allowedOrigins);
 const positive = (await json('positive.json')).cases;
 const intermediate = await json('intermediates.json');
 const mutations = await json('mutations.json');
+
+const expectedInventory = { 'index.html': hash('html'), 'wdoc-assets/style.css': hash('css') };
+const nullPrototypeInventory = Object.assign(Object.create(null), {
+  'wdoc-assets/style.css': expectedInventory['wdoc-assets/style.css'], 'index.html': expectedInventory['index.html'],
+});
+equalInventory(nullPrototypeInventory, expectedInventory, 'Inventory comparison ignores prototypes and member order');
+for (const [label, changed] of Object.entries({
+  'Modified inventory hash': { ...expectedInventory, 'index.html': hash('changed') },
+  'Missing inventory path': { 'index.html': expectedInventory['index.html'] },
+  'Additional inventory path': { ...expectedInventory, 'wdoc-assets/extra.css': hash('extra') },
+})) {
+  assert.throws(() => equalInventory(nullPrototypeInventory, changed, label), { name: 'AssertionError' }, label);
+  assertions++;
+}
 
 for (const p of intermediate.primitives) {
   equal(createHash('sha256').update(p.utf8).digest('hex'), p.sha256Hex, p.id);
@@ -79,7 +96,7 @@ for (const c of positive) {
   const files = bytes(c.files);
   const manifest = parseJson(decode(files['manifest.json'])) as Manifest;
   schema('manifest.schema.json', manifest);
-  equal(await inventory(Object.fromEntries(Object.keys(manifest.content.files).map(p => [p, files[p]]))), manifest.content.files, `${c.id} original inventory`);
+  equalInventory(await inventory(Object.fromEntries(Object.keys(manifest.content.files).map(p => [p, files[p]]))), manifest.content.files, `${c.id} original inventory`);
   for (const s of [...manifest.signatures.document, ...manifest.runtime.revisions.flatMap(r => r.signatures)]) {
     const payload = verifyJwsStructureAndMath(s.jws, 'document', s.signatureId);
     if (payload.proofMode === 'digest-only') assert.ok(s.nonce, `${c.id} document opening`);
@@ -124,8 +141,8 @@ const formedFiles = bytes(formed.files);
 const formedManifest = parseJson(decode(formedFiles['manifest.json']));
 const snapshot = formedManifest.runtime.submissions.approval[0];
 const formInventory = await inventory(Object.fromEntries([snapshot.answersFile, ...snapshot.attachments].map(p => [p, formedFiles[p]])));
-equal(formInventory, intermediate.commitments.find((c: any) => c.kind === 'form').value.files, 'Published form inventory');
-equal(await inventory(formedFiles), intermediate.commitments.find((c: any) => c.kind === 'seal').value.files, 'Seal inventory includes actual manifest bytes');
+equalInventory(formInventory, intermediate.commitments.find((c: any) => c.kind === 'form').value.files, 'Published form inventory');
+equalInventory(await inventory(formedFiles), intermediate.commitments.find((c: any) => c.kind === 'seal').value.files, 'Seal inventory includes actual manifest bytes');
 for (const [kind, payload] of Object.entries(intermediate.payloads)) {
   schema(`${kind}-jws.schema.json`, payload);
   const files = bytes(sealed.files);

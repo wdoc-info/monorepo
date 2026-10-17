@@ -18,6 +18,8 @@ Every `positive.json` case's `files` object maps exact safe archive paths to **s
 
 `canonical`, `canonicalPreimage`, and `utf8` strings in the intermediate file are literal strings after JSON escape decoding. Hash their UTF-8 encoding without a BOM or added newline. `value` is a JSON value, not a second JSON string serialization. The example document digest is `yQHi5nyGFVmX2bUTArXorWSm63gZKl0Yi2pv_CvbCPU`.
 
+Inventory assertions compare all own path/hash members independently of JavaScript object prototypes and member order. The runtime's null-prototype dictionaries and the ordinary objects parsed from the vectors represent the same JSON inventory. Regression checks require changed hashes, missing paths, and additional paths to fail comparison. Archive byte comparisons remain strict and preserve every byte.
+
 The positive cases are:
 
 1. `unsigned`: inventory matches, document is unsigned.
