@@ -1,0 +1,35 @@
+{
+  "keys": [
+    {
+      "kid": "https://sig.example.test/info/platform-1",
+      "jwk": {
+        "kty": "EC",
+        "crv": "P-256",
+        "x": "axfR8uEsQkf4vOblY6RA8ncDfYEt6zOg9KE5RdiYwpY",
+        "y": "T-NC4v4af5uO5-tKfA-eFivOM1drMV7Oy7ZAaDe_UfU"
+      },
+      "status": "active",
+      "trusted": true,
+      "authority": "platform",
+      "owner": "Example Test Authority"
+    },
+    {
+      "kid": "https://identity.example.test/info/alice-1",
+      "jwk": {
+        "kty": "EC",
+        "crv": "P-256",
+        "x": "fPJ7GI0DT36KUjgDBLUaw8CJaeJ38hs1pgtI_EdmmXg",
+        "y": "B3dVENuO0EApPZrGn3Qw27p9reY86YIpngS3nSJ4c9E"
+      },
+      "status": "active",
+      "trusted": true,
+      "authority": "personal",
+      "owner": "Alice Example",
+      "userId": "alice"
+    }
+  ],
+  "allowedOrigins": [
+    "https://sig.example.test",
+    "https://identity.example.test"
+  ]
+}

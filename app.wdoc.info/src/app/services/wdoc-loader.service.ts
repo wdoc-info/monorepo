@@ -1,10 +1,11 @@
+import { DocumentLayoutError } from '../signatures/archive';
+import { verifyDocument, type Manifest, type Files, safePath, parseJson, decodeUtf8, isRecord } from '../signatures/core';
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { lastValueFrom } from 'rxjs';
 import { HtmlProcessingService } from './html-processing.service';
 import { DialogService } from './dialog.service';
-import { ManifestSection, WdocManifest } from './manifest-builder';
-import { StreamedZip, type StreamedZipEntry } from './zip-reader';
+import { StreamedZip } from './zip-reader';
 
 export interface WdocLoadResult {
   html: string;
@@ -26,13 +27,6 @@ export class WdocLoaderService {
     private htmlProcessingService: HtmlProcessingService,
     private dialogService: DialogService,
   ) {}
-
-  static async computeSha256(data: Uint8Array): Promise<string> {
-    const buffer = data.slice().buffer as ArrayBuffer;
-    const digest = await crypto.subtle.digest('SHA-256', buffer);
-    const bytes = Array.from(new Uint8Array(digest));
-    return bytes.map((b) => b.toString(16).padStart(2, '0')).join('');
-  }
 
   async fetchAndLoadWdoc(url: string): Promise<WdocLoadResult | null> {
     try {
@@ -62,21 +56,14 @@ export class WdocLoaderService {
         closeLoading();
         return null;
       }
-      const indexFile = this.findIndexFile(zip);
-      if (!indexFile) {
-        closeLoading();
-        await this.dialogService.openAlert(
-          'index.html not found in the archive.',
-          'Missing entry',
-        );
-        return null;
-      }
-      const html = (await indexFile.async('text')) as string;
+      const html = (await zip.file('index.html')!.async('text')) as string;
+      const basePath = '';
       const processed = await this.htmlProcessingService.processHtml(zip, html, {
         defaultTitle,
+        basePath,
       });
-      const attachments = await this.extractFiles(zip, 'wdoc-attachment');
-      const formAnswers = await this.extractFiles(zip, 'wdoc-form');
+      const attachments = await this.extractFiles(zip, `${basePath}wdoc-attachment`);
+      const formAnswers = await this.extractFiles(zip, `${basePath}wdoc-form`);
       closeLoading();
       return {
         html: processed.html,
@@ -88,38 +75,12 @@ export class WdocLoaderService {
     } catch (error) {
       console.error('Error processing zip file:', error);
       await this.dialogService.openAlert(
-        'Error processing .wdoc file.',
-        'Processing error',
+        error instanceof DocumentLayoutError ? error.message : 'Error processing .wdoc file.',
+        error instanceof DocumentLayoutError ? 'Invalid archive layout' : 'Processing error',
       );
       closeLoading();
       return null;
     }
-  }
-
-  private findIndexFile(zip: StreamedZip): StreamedZipEntry | null {
-    let indexFile = zip.file('index.html');
-    if (!indexFile) {
-      const nestedIndexEntry = zip
-        .entries()
-        .filter((entry) => !entry.dir)
-        .filter((entry) => !this.isNoiseFile(entry.name))
-        .filter((entry) => this.isIndexHtmlPath(entry.name))
-        .sort((a, b) => {
-          const depthDelta = this.getEntryDepth(a.name) - this.getEntryDepth(b.name);
-          return depthDelta !== 0 ? depthDelta : a.name.localeCompare(b.name);
-        })[0];
-      indexFile = nestedIndexEntry ?? null;
-    }
-    return indexFile ?? null;
-  }
-
-  private isIndexHtmlPath(path: string): boolean {
-    const normalized = path.replace(/^\/+/, '');
-    return normalized.split('/').pop()?.toLowerCase() === 'index.html';
-  }
-
-  private getEntryDepth(path: string): number {
-    return path.split('/').filter(Boolean).length;
   }
 
   private async verifyContentManifest(zip: StreamedZip): Promise<boolean> {
@@ -128,52 +89,25 @@ export class WdocLoaderService {
       return true;
     }
 
-    let manifest: any;
     try {
-      const manifestText = (await manifestFile.async('text')) as string;
-      manifest = JSON.parse(manifestText);
-    } catch (error) {
-      console.error('Failed to parse manifest.json', error);
-      await this.dialogService.openAlert(
-        'The document content could not be verified and will not be opened.',
-        'Verification failed',
-      );
+      const manifest = parseJson(decodeUtf8(await manifestFile.async('uint8array') as Uint8Array));
+      if (!isRecord(manifest) || manifest['manifestVersion'] !== '1.0') {
+        await this.dialogService.openAlert('The document manifest uses an unsupported format and will not be opened.', 'Unsupported manifest');
+        return false;
+      }
+      const files: Files = Object.create(null);
+      for (const entry of zip.entries()) if (!entry.dir) {
+        if (!safePath(entry.name)) throw new Error('Unsafe archive path');
+        files[entry.name] = await entry.async('uint8array') as Uint8Array;
+      }
+      const report = await verifyDocument(manifest as unknown as Manifest, files, []);
+      if (report.content.status === 'file-modified') throw new Error('Original content was modified');
+      // Cryptographic trust is displayed separately by the signature panel.
+      return true;
+    } catch {
+      await this.dialogService.openAlert('The document content does not match its manifest and will not be opened.', 'Verification failed');
       return false;
     }
-
-    const manifestShapeValid =
-      typeof manifest === 'object' &&
-      manifest !== null &&
-      typeof manifest.content === 'object' &&
-      manifest.content !== null &&
-      typeof manifest.runtime === 'object' &&
-      manifest.runtime !== null;
-
-    if (!manifestShapeValid) {
-      await this.dialogService.openAlert(
-        'The document manifest uses an unsupported format and will not be opened.',
-        'Unsupported manifest',
-      );
-      return false;
-    }
-
-    const mismatches: string[] = [];
-    await this.verifyManifestSection(zip, manifest.content, mismatches);
-
-    const forms = (manifest as WdocManifest).runtime?.forms ?? {};
-    for (const section of Object.values(forms)) {
-      await this.verifyManifestSection(zip, section, mismatches);
-    }
-
-    if (mismatches.length > 0) {
-      await this.dialogService.openAlert(
-        'The document content does not match its manifest and will not be opened.',
-        'Verification failed',
-      );
-      return false;
-    }
-
-    return true;
   }
 
   private async extractFiles(
@@ -247,51 +181,4 @@ export class WdocLoaderService {
     }
   }
 
-  private async verifyManifestSection(
-    zip: StreamedZip,
-    section: ManifestSection,
-    mismatches: string[],
-  ): Promise<void> {
-    if (
-      !section ||
-      section.hashAlgorithm !== 'sha256' ||
-      typeof section.files !== 'object' ||
-      section.files === null
-    ) {
-      mismatches.push('manifest.json');
-      return;
-    }
-
-    const digestPayload = Object.entries(section.files).sort(([a], [b]) =>
-      a.localeCompare(b),
-    );
-    const digestSource = digestPayload
-      .map(([path, hash]) => `${path}:${hash}`)
-      .join('\n');
-    const computedDigest = await WdocLoaderService.computeSha256(
-      new TextEncoder().encode(digestSource),
-    );
-    if (section.contentDigest !== computedDigest) {
-      mismatches.push('manifest.json');
-    }
-
-    for (const [path, expectedHash] of Object.entries(section.files)) {
-      const entry = zip.file(path);
-      if (!entry || typeof expectedHash !== 'string') {
-        mismatches.push(path);
-        continue;
-      }
-
-      try {
-        const data = (await entry.async('uint8array')) as Uint8Array;
-        const sha256 = await WdocLoaderService.computeSha256(data);
-        if (sha256 !== expectedHash) {
-          mismatches.push(path);
-        }
-      } catch (error) {
-        console.error('Failed to verify manifest entry', path, error);
-        mismatches.push(path);
-      }
-    }
-  }
 }

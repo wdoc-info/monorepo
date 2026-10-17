@@ -1,0 +1,367 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.wdoc.info/schemas/common.schema.json",
+  "definitions": {
+    "identifier": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,128}$(?![\\s\\S])",
+      "not": {
+        "enum": [
+          "__proto__",
+          "constructor",
+          "prototype"
+        ]
+      }
+    },
+    "safePath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[^/\\\\\\u0000-\\u001f\\u007f:%?#]+(?:/[^/\\\\\\u0000-\\u001f\\u007f:%?#]+)*$(?![\\s\\S])",
+      "allOf": [
+        {
+          "not": {
+            "pattern": "(^|/)(\\.{1,2}|__proto__|constructor|prototype)(/|$)"
+          }
+        }
+      ],
+      "description": "Safe archive path; additionally limited to 512 UTF-16 code units by the prose specification. JSON Schema maxLength counts Unicode code points."
+    },
+    "originalPath": {
+      "allOf": [
+        {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/safePath"
+        },
+        {
+          "not": {
+            "pattern": "^(manifest\\.json$|(?:wdoc-form|submissions|seals|revisions)/)"
+          }
+        }
+      ]
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$(?![\\s\\S])"
+    },
+    "nonce": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{42}[AEIMQUYcgkosw048]$(?![\\s\\S])",
+      "description": "Locally retained random commitment nonce; MUST NOT be sent to the attestation service."
+    },
+    "compactJws": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$(?![\\s\\S])"
+    },
+    "fileInventory": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/safePath"
+      },
+      "additionalProperties": {
+        "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+      }
+    },
+    "signer": {
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "displayName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "userId",
+        "displayName"
+      ],
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "const": "commitment-only"
+        },
+        "method": {
+          "const": "authenticated-session"
+        },
+        "consent": {
+          "const": "wdoc-sign-v1"
+        }
+      },
+      "required": [
+        "scope"
+      ],
+      "additionalProperties": false
+    },
+    "platformEvidence": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "const": "commitment-only"
+        },
+        "method": {
+          "const": "authenticated-session"
+        },
+        "consent": {
+          "const": "wdoc-sign-v1"
+        }
+      },
+      "required": [
+        "scope",
+        "method",
+        "consent"
+      ],
+      "additionalProperties": false
+    },
+    "meta": {
+      "type": "object",
+      "properties": {
+        "docId": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/identifier"
+        },
+        "appVersion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$(?![\\s\\S])"
+        },
+        "contentUpdatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$(?![\\s\\S])"
+        },
+        "docTitle": {
+          "type": "string"
+        },
+        "creator": {
+          "type": "string"
+        },
+        "docVersion": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "docId",
+        "appVersion",
+        "createdAt",
+        "contentUpdatedAt"
+      ],
+      "additionalProperties": true
+    },
+    "content": {
+      "type": "object",
+      "properties": {
+        "hashAlgorithm": {
+          "const": "SHA-256"
+        },
+        "files": {
+          "type": "object",
+          "required": [
+            "index.html"
+          ],
+          "propertyNames": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/originalPath"
+          },
+          "additionalProperties": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+          }
+        }
+      },
+      "required": [
+        "hashAlgorithm",
+        "files"
+      ],
+      "additionalProperties": true
+    },
+    "scope": {
+      "type": "object",
+      "properties": {
+        "manifestVersion": {
+          "const": "1.0"
+        },
+        "meta": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/meta"
+        },
+        "content": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/content"
+        }
+      },
+      "required": [
+        "manifestVersion",
+        "meta",
+        "content"
+      ],
+      "additionalProperties": false
+    },
+    "documentWrapper": {
+      "type": "object",
+      "properties": {
+        "signatureId": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/identifier"
+        },
+        "jws": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/compactJws"
+        },
+        "nonce": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/nonce"
+        }
+      },
+      "required": [
+        "signatureId",
+        "jws",
+        "nonce"
+      ],
+      "additionalProperties": false
+    },
+    "formWrapper": {
+      "type": "object",
+      "properties": {
+        "signatureId": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/identifier"
+        },
+        "jws": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/compactJws"
+        },
+        "nonce": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/nonce"
+        },
+        "formId": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/identifier"
+        },
+        "submissionId": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/identifier"
+        }
+      },
+      "required": [
+        "signatureId",
+        "jws",
+        "formId",
+        "submissionId",
+        "nonce"
+      ],
+      "additionalProperties": false
+    },
+    "submission": {
+      "type": "object",
+      "properties": {
+        "submissionId": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/identifier"
+        },
+        "answersFile": {
+          "allOf": [
+            {
+              "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/safePath"
+            },
+            {
+              "pattern": "^submissions/[A-Za-z0-9_-]{1,128}/answers\\.json$(?![\\s\\S])"
+            }
+          ]
+        },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/safePath"
+              },
+              {
+                "pattern": "^submissions/[A-Za-z0-9_-]{1,128}/attachments/[^/]+$(?![\\s\\S])"
+              }
+            ]
+          },
+          "uniqueItems": true
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt](?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:[Zz]|[+-](?:[01]\\d|2[0-3]):[0-5]\\d)$(?![\\s\\S])"
+        },
+        "documentDigest": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+        },
+        "replaces": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/identifier"
+        }
+      },
+      "required": [
+        "submissionId",
+        "answersFile",
+        "attachments",
+        "createdAt",
+        "documentDigest"
+      ],
+      "additionalProperties": false
+    },
+    "revision": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/scope"
+        },
+        "files": {
+          "type": "object",
+          "propertyNames": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/originalPath"
+          },
+          "additionalProperties": {
+            "allOf": [
+              {
+                "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/safePath"
+              },
+              {
+                "pattern": "^revisions/[A-Za-z0-9_-]{43}/files/[\\s\\S]+$(?![\\s\\S])"
+              }
+            ]
+          }
+        },
+        "signatures": {
+          "type": "array",
+          "items": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/documentWrapper"
+          }
+        }
+      },
+      "required": [
+        "scope",
+        "files",
+        "signatures"
+      ],
+      "additionalProperties": false
+    },
+    "draftSection": {
+      "type": "object",
+      "properties": {
+        "hashAlgorithm": {
+          "const": "SHA-256"
+        },
+        "files": {
+          "type": "object",
+          "propertyNames": {
+            "allOf": [
+              {
+                "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/safePath"
+              },
+              {
+                "pattern": "^wdoc-form/"
+              }
+            ]
+          },
+          "additionalProperties": {
+            "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+          }
+        }
+      },
+      "required": [
+        "hashAlgorithm",
+        "files"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

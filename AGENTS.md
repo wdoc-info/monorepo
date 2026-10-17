@@ -1,6 +1,19 @@
 # Agent Guide: wdoc Monorepo
 
-This repo contains four previously separate projects. Keep changes scoped to the relevant subrepo unless a cross-repo change is explicitly requested.
+This repo contains independent application, API, website, validator, and fixture projects. Keep changes scoped to the relevant subrepo unless a cross-repo change is explicitly requested.
+
+## Repository language
+
+- The entire repository must use English for repository-authored content: source code, identifiers, comments, documentation, specifications, tests, example explanations, UI text, API messages, and development instructions.
+- A prompt in French or any other language does not change this rule. Respond to the user in their language when appropriate, but write repository changes in English.
+- Preserve user document bytes, signed content, third-party material, and existing test fixtures as data; do not translate or rewrite them incidentally. Translate repository-authored prose when editing it.
+
+## Format specification is mandatory
+
+- [`spec/README.md`](spec/README.md) is the entry point to the normative wdoc format specification. Read the relevant sections before changing format behavior.
+- Every format change MUST update the specification in the same change. This includes archive structure, paths, manifest fields, HTML elements and attributes, form persistence, snapshots, revisions, canonicalization, hashes, signatures, commitments, seals, trust rules, validation, compatibility, limits, and the signing protocol.
+- Update the relevant prose, JSON schemas, and test vectors together. Explicitly document compatibility and any version, algorithm, or commitment-domain decision. An implementation change without its corresponding specification update is incomplete.
+- Describe implemented behavior precisely. Do not document planned cloud storage or other unimplemented features as supported. Keep operational instructions in `docs/`; normative format definitions belong in `spec/`.
 
 ## Directory map
 
@@ -8,6 +21,7 @@ This repo contains four previously separate projects. Keep changes scoped to the
 - `backend.wdoc.info/`: Bun/Hono auth API (OTP + JWT + SQLite).
 - `www.wdoc.info/`: Astro marketing site and blog.
 - `examples.wdoc.info/`: `.wdoc` fixtures and unpacked HTML test content.
+- `validator.wdoc.info/`: standalone Angular validator; local format, signature, and optional-feature reports.
 
 ## Fast orientation
 
@@ -83,6 +97,24 @@ npm install
 npm run dev
 npm run build
 ```
+
+### Validator
+
+```bash
+cd validator.wdoc.info
+npm ci
+npm start                    # standalone validator on :4300
+npm test                     # Bun conformance/report/key-policy tests, with coverage
+npm run typecheck
+npm run build
+npm run e2e                  # Playwright browser workflows
+npm run format:sync          # copy authoritative core, schemas, and published spec
+```
+
+Validator verification modules and schemas are checked mirrors. After a format change,
+run `npm run format:sync` in the validator and update its tests in the same change.
+Never add document uploads, archive-selected key fetching, or document HTML rendering
+to the validator. Keep optional recommendations separate from conformance errors.
 
 ## CI conventions
 

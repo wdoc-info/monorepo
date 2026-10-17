@@ -43,7 +43,7 @@ describe('DocumentCreatorService', () => {
       await manifest!.async('text'),
     ) as WdocManifest;
     expect(manifestJson.content.files['index.html']).toBeDefined();
-    expect(manifestJson.content.hashAlgorithm).toBe('sha256');
+    expect(manifestJson.content.hashAlgorithm).toBe('SHA-256');
     expect(manifestJson.meta.appVersion).toBe(APP_VERSION);
     expect(manifestJson.meta.creator).toBe('author@example.com');
     expect(manifestJson.meta.docTitle).toBe('Draft Document');

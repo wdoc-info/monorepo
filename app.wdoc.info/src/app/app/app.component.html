@@ -33,7 +33,16 @@
         (titleChange)="onDocumentTitleChange($event)"
         (zoomChange)="onZoomChange($event)"
       ></app-topbar>
+      @if (!isEditing && originalArrayBuffer) {
+        <app-signature-panel [buffer]="originalArrayBuffer" [formRoot]="viewer ? (viewer.documentRoot || viewer.nativeElement || null) : null" (archiveChanged)="onSignedArchive($event)"></app-signature-panel>
+      }
       @if (isEditing) {
+        @if (originalArrayBuffer) {
+          <div class="revision-actions">
+            <button type="button" (click)="onSaveSignedRevision()" [disabled]="savingRevision">{{ savingRevision ? 'Signing revision…' : 'Save as new signed content revision' }}</button>
+            <p>Retains previous signed content, submissions and signatures in the archive.</p>
+          </div>
+        }
         <app-document-editor
           [content]="editorContent"
           (contentChange)="onEditorContentChange($event)"

@@ -1,0 +1,84 @@
+<svg class="icon-definitions" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M7 17 17 7M7 7h10v10"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6M8 13h8M8 17h5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7v.1"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m12 3 10 18H2zM12 9v5M12 17v.1"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6zM8 12l3 3 5-6"/></symbol>
+</defs></svg>
+<a class="skip-link" href="#main">Skip to validator</a>
+<header class="site-header">
+  <a class="brand" href="/" aria-label="wdoc Validator home"><span class="brand-mark" aria-hidden="true">w</span><span>wdoc<span class="brand-divider">/</span><span class="brand-tool">validator</span></span></a>
+  <nav aria-label="Main navigation"><span class="version">Format 1.0 <span>alpha</span></span><a href="/spec/wdoc-format.md" target="_blank" rel="noopener">Specification <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></nav>
+</header>
+<main id="main">
+  <section class="intro" aria-labelledby="page-title">
+    <div><p class="eyebrow"><span class="status-dot"></span> THE LOCAL DOCUMENT CHECK</p><h1 id="page-title">Validate your <span>wdoc.</span></h1><p class="intro-copy">Check the format. Verify the signatures.<br>See what would make your document more complete.</p></div>
+    <div class="privacy-note"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><div><strong>Your document stays with you.</strong><p>Files are checked in your browser.<br>No upload. No account. No document storage.</p></div></div>
+  </section>
+  <div class="workspace">
+    <aside class="input-column" aria-label="Document and verification settings">
+      <section class="upload-card" [class.is-dragging]="dragging()" (dragenter)="dragEnter($event)" (dragover)="dragOver($event)" (dragleave)="dragLeave($event)" (drop)="drop($event)" aria-labelledby="drop-title">
+        <input #documentInput type="file" accept=".wdoc,.zip,application/zip" (change)="chooseDocument($event)" class="visually-hidden" tabindex="-1" aria-label="Choose document">
+        <div class="upload-illustration" aria-hidden="true"><div class="paper-back"></div><div class="paper-front"><svg class="icon"><use href="#i-file"/></svg><span>.wdoc</span></div><span class="upload-badge"><svg class="icon"><use href="#i-upload"/></svg></span></div>
+        <h2 id="drop-title">{{ dragging() ? 'Drop it here.' : 'Drop your document here' }}</h2><p>One .wdoc or .zip file at a time</p>
+        <button class="button primary" type="button" (click)="documentInput.click()"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>Choose document</button>
+        <p class="upload-limits">1,000 ZIP entries · 10 MB per file<br>30 MB total after decompression</p>
+        @if (file(); as document) {
+          <div class="selected-file"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><div><strong>{{ document.name }}</strong><span>{{ bytes(document.size) }} compressed</span></div><button class="icon-button" type="button" (click)="clear()" aria-label="Clear document"><svg class="icon" aria-hidden="true"><use href="#i-close"/></svg></button></div>
+        }
+      </section>
+      <section class="key-card" aria-labelledby="keys-title">
+        <div class="card-heading"><h2 id="keys-title">Verification keys</h2><span class="small-label">PUBLIC ONLY</span></div>
+        <div class="segmented" role="group" aria-label="Public key source"><button type="button" [attr.aria-pressed]="keyMode() === 'online'" (click)="setKeyMode('online')">Online registry</button><button type="button" [attr.aria-pressed]="keyMode() === 'local'" (click)="setKeyMode('local')">Local registry</button></div>
+        @if (keyMode() === 'online') {
+          <p class="key-help">If signatures are present, public keys are requested from the configured wdoc authority. Your file and its details are never sent.</p>
+        } @else {
+          <p class="key-help">For offline checks, load a public key registry obtained from a source you trust. Keys in the document cannot establish trust.</p>
+          <input #registryInput type="file" accept=".json,application/json" class="visually-hidden" tabindex="-1" (change)="chooseRegistry($event)" aria-label="Choose public key registry">
+          <button class="button secondary registry-button" type="button" (click)="registryInput.click()" [disabled]="registryLoading()">{{ registryLoading() ? 'Reading registry…' : 'Load trusted registry' }}</button>
+          @if (registryName()) { <p class="registry-name"><strong>{{ registryName() }}</strong>@if (!registryError() && !registryLoading()) { <span>{{ keyCount() }} public keys loaded</span> }</p> }
+          @if (registryError()) { <p class="inline-error" role="alert">{{ registryError() }}</p> }
+        }
+      </section>
+      <p class="local-note"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span>Document HTML is inspected as data.<br>It is never displayed or executed here.</span></p>
+    </aside>
+    <section class="report-column" aria-label="Validation report" [attr.aria-busy]="busy()">
+      @if (error()) { <div class="error-banner" role="alert"><svg class="icon" aria-hidden="true"><use href="#i-alert"/></svg><div><strong>Validation could not finish</strong><p>{{ error() }}</p></div></div> }
+      @if (busy()) {
+        <div class="empty-state processing" role="status"><span class="spinner" aria-hidden="true"></span><p class="eyebrow">WORKING LOCALLY</p><h2>Checking your document…</h2><p>{{ phase() }}</p><div class="progress-track" aria-hidden="true"><span></span></div></div>
+      } @else if (report(); as result) {
+        <div class="report-heading"><span class="eyebrow">VALIDATION REPORT</span><button class="text-button" type="button" (click)="exportReport()"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>Save JSON report</button></div>
+        <section class="verdict" [class.is-invalid]="result.verdict === 'invalid'" [class.is-unverified]="result.verdict === 'unverified'" aria-labelledby="result-title" role="status">
+          <span class="verdict-icon"><svg class="icon" aria-hidden="true"><use [attr.href]="result.verdict === 'valid' ? '#i-check' : result.verdict === 'invalid' ? '#i-close' : '#i-info'"/></svg></span><div><h2 id="result-title">{{ title(result) }}</h2><p>{{ description(result) }}</p></div>
+        </section>
+        <div class="metrics"><div><span>FORMAT</span><strong [class.text-error]="result.format === 'invalid'">{{ result.format === 'valid' ? 'Conforms' : 'Does not conform' }}</strong><small>{{ passedCount() }} checks passed@if (errorCount()) { · {{ errorCount() }} failed }</small></div><div><span>SIGNATURES</span><strong>{{ signatureLabel(result.signatures.state) }}</strong><small>@if (result.signatures.state === 'not-checked') {Format validation must complete first} @else { {{ result.signatures.count }} signatures present }</small></div><div><span>OPTIONAL ADDITIONS</span><strong>{{ adviceCount() }} suggestions</strong><small>Not required for validity</small></div></div>
+        <section class="report-card" aria-labelledby="format-title"><div class="card-heading"><h3 id="format-title">Format checks</h3><span class="small-label">WDOC-FORMAT 1.0</span></div><ol class="finding-list">
+          @for (check of result.checks; track check.id) { <li [class]="'finding ' + check.level"><span class="finding-icon"><svg class="icon" aria-hidden="true"><use [attr.href]="check.level === 'pass' ? '#i-check' : check.level === 'error' ? '#i-close' : '#i-info'"/></svg></span><div><div class="finding-title"><h4>{{ check.title }}</h4><span>§ {{ check.section }}</span></div><p>{{ check.detail }}</p>@if (check.path) { <code>{{ check.path }}</code> }</div></li> }
+        </ol></section>
+        <section class="report-card" aria-labelledby="signature-title"><div class="card-heading"><h3 id="signature-title">Signature verification</h3><span class="small-label">ES256 · LOCAL CHECKS</span></div>
+          @if (result.signatures.count) { <div class="trust-source"><svg class="icon" aria-hidden="true"><use href="#i-shield"/></svg><span>{{ result.trust.source }}@if (result.trust.state === 'unavailable') { · unavailable }</span><button class="text-button" type="button" (click)="run()">Check again</button></div> }
+          @if (!groups().length) { <div class="unsigned-note"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><div><strong>{{ result.signatures.state === 'not-checked' ? 'Signature checks could not run' : 'No verifiable signatures found' }}</strong><p>@if (result.signatures.state === 'not-checked') {The archive or manifest must be readable before signatures can be inspected.} @else {An unsigned document can be fully conforming. Signatures add authenticated identity and scope; a manifest alone supplies unauthenticated integrity.}</p></div></div> }
+          @for (group of groups(); track group.kind) { <div class="signature-group"><h4>{{ group.label }}</h4>@for (check of group.rows; track $index) {
+            <article [class]="'signature-result ' + check.outcome"><div class="signature-result-heading"><span class="outcome-dot"></span><strong>{{ check.label }}</strong></div><p>{{ check.explanation }}</p>
+              @if (check.signatureId) { <code>{{ check.signatureId }}</code> }
+              @if (check.formId) { <dl class="signature-meta"><dt>Form</dt><dd>{{ check.formId }}</dd><dt>Submission</dt><dd>{{ check.submissionId }}</dd></dl> }
+              @if (check.signer) { <p class="signer"><strong>Signed account:</strong> {{ signer(check.signer) }}@if (check.signedAt) { <span> · {{ check.signedAt | date:'medium':'UTC' }} UTC</span> }</p> }
+              @if (check.kid) { <details><summary>Key and scope details</summary><dl class="signature-meta"><dt>Key ID</dt><dd>{{ check.kid }}</dd><dt>Authority</dt><dd>{{ check.authority || 'Not established' }}</dd><dt>Scope</dt><dd>{{ kindLabel(check.kind) }}</dd><dt>Result code</dt><dd>{{ check.status }}</dd></dl></details> }
+            </article>
+          }</div> }
+          <p class="scope-note">Each result concerns its stated scope. An original signature does not sign editable drafts or prove that every submission is signed.</p>
+        </section>
+        @if (result.recommendations.length) { <section class="report-card recommendations" aria-labelledby="recommendation-title"><div class="card-heading"><h3 id="recommendation-title">Make it more complete</h3><span class="small-label">OPTIONAL</span></div><p class="card-intro">These suggestions do not make an otherwise valid document fail.</p><ol class="finding-list">@for (advice of result.recommendations; track advice.id) { <li class="finding advice"><span class="finding-icon"><svg class="icon" aria-hidden="true"><use [attr.href]="advice.level === 'warning' ? '#i-info' : '#i-arrow'"/></svg></span><div><div class="finding-title"><h4>{{ advice.title }}</h4><span>§ {{ advice.section }}</span></div><p>{{ advice.detail }}</p>@if (advice.path) { <code>{{ advice.path }}</code> }</div></li> }</ol></section> }
+        @if (result.files.length) { <section class="report-card file-inventory"><details><summary><span>Inspected files <span class="file-count">{{ result.files.length }}</span></span><span>{{ bytes(result.expandedBytes) }} expanded</span></summary><p class="inventory-root">Document root: <code>{{ result.rootPrefix || 'ZIP root' }}</code>. Paths below are logical document paths.</p><div class="table-scroll"><table><caption class="visually-hidden">Inspected archive files</caption><thead><tr><th>File</th><th>Scope</th><th>Size</th></tr></thead><tbody>@for (entry of result.files; track entry.path) { <tr><td><code>{{ entry.path }}</code></td><td>{{ entry.kind }}</td><td>{{ bytes(entry.size) }}</td></tr> }</tbody></table></div></details></section> }
+        <div class="report-footer"><span>Checked {{ result.checkedAt | date:'medium':'UTC' }} UTC · Format 1.0</span>@if (result.documentDigest) { <details><summary>Document digest</summary><code>{{ result.documentDigest }}</code></details> }</div>
+      } @else if (!error()) {
+        <div class="empty-state"><div class="empty-icon" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></div><p class="eyebrow">READY WHEN YOU ARE</p><h2>A clear picture of your document.</h2><p>Drop a file to get a detailed, private report.</p><div class="empty-checks"><div><span>01</span><strong>Format & integrity</strong><p>ZIP structure, paths, manifest, and file hashes.</p></div><div><span>02</span><strong>Signatures & seals</strong><p>Cryptography, trusted keys, and signed scopes.</p></div><div><span>03</span><strong>Useful next steps</strong><p>Optional additions, clearly separated from errors.</p></div></div><span class="minimum-note">Even a ZIP with only index.html can be a valid wdoc.</span></div>
+      }
+    </section>
+  </div>
+</main>
+<footer class="site-footer"><a class="brand-footer" href="https://www.wdoc.info">wdoc<span>Open format. Local documents.</span></a><span>Validated against the current alpha specification.</span><a href="https://github.com/wdoc-info/monorepo" target="_blank" rel="noopener noreferrer">Source code <svg class="icon" aria-hidden="true"><use href="#i-arrow"/></svg></a></footer>

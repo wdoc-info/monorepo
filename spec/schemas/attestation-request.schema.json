@@ -1,0 +1,91 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://www.wdoc.info/schemas/attestation-request.schema.json",
+  "description": "Strict signing body union. The selected endpoint determines the branch; extra fields are rejected. Body size and authentication are protocol constraints.",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$(?![\\s\\S])"
+        },
+        "consent": {
+          "const": true
+        },
+        "documentCommitment": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+        }
+      },
+      "required": [
+        "requestId",
+        "consent",
+        "documentCommitment"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$(?![\\s\\S])"
+        },
+        "consent": {
+          "const": true
+        },
+        "documentProof": {
+          "allOf": [
+            {
+              "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/compactJws"
+            }
+          ],
+          "maxLength": 8192
+        },
+        "submissionCommitment": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+        }
+      },
+      "required": [
+        "requestId",
+        "consent",
+        "documentProof",
+        "submissionCommitment"
+      ],
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "properties": {
+        "requestId": {
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$(?![\\s\\S])"
+        },
+        "consent": {
+          "const": true
+        },
+        "documentProof": {
+          "allOf": [
+            {
+              "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/compactJws"
+            }
+          ],
+          "maxLength": 8192
+        },
+        "archiveCommitment": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+        }
+      },
+      "required": [
+        "requestId",
+        "consent",
+        "documentProof",
+        "archiveCommitment"
+      ],
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+name: wdoc format conformance
+
+on:
+  push:
+    paths:
+      - spec/**
+      - validator.wdoc.info/src/app/format/**
+      - validator.wdoc.info/public/spec/**
+      - app.wdoc.info/src/app/**
+      - app.wdoc.info/package.json
+      - app.wdoc.info/package-lock.json
+      - backend.wdoc.info/src/signatures/**
+      - backend.wdoc.info/package.json
+      - backend.wdoc.info/bun.lock
+      - .github/workflows/spec-tests.yml
+  pull_request:
+    paths:
+      - spec/**
+      - validator.wdoc.info/src/app/format/**
+      - validator.wdoc.info/public/spec/**
+      - app.wdoc.info/src/app/**
+      - app.wdoc.info/package.json
+      - app.wdoc.info/package-lock.json
+      - backend.wdoc.info/src/signatures/**
+      - backend.wdoc.info/package.json
+      - backend.wdoc.info/bun.lock
+      - .github/workflows/spec-tests.yml
+  workflow_dispatch: {}
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: app.wdoc.info/package-lock.json
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install backend dependencies
+        run: bun install --frozen-lockfile
+        working-directory: backend.wdoc.info
+      - name: Install schema validation dependencies from the app toolchain
+        run: npm ci
+        working-directory: app.wdoc.info
+        env:
+          PUPPETEER_SKIP_DOWNLOAD: 'true'
+      - name: Verify schemas, archive vectors, rejection cases, and source parity
+        run: bun spec/vectors/verify.ts

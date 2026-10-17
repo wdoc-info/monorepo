@@ -14,7 +14,7 @@ bun install
 | --- | --- | --- |
 | PORT | 3000 | Server port |
 | DATABASE_URL | ./data/dev.db | SQLite database path |
-| CORS_ORIGINS | http://localhost:4200,https://app.wdoc.info | Comma-separated allowed origins |
+| CORS_ORIGINS | Application and validator production/development origins | Comma-separated allowed origins; an explicit value replaces the defaults |
 | JWT_SECRET | dev-jwt-secret | Secret used to sign JWTs |
 | JWT_EXPIRES_IN_SECONDS | 604800 | JWT expiration (seconds) |
 | OTP_EXPIRES_IN_MINUTES | 10 | OTP expiration (minutes) |
@@ -57,3 +57,9 @@ curl -X POST http://localhost:3000/loginvalidate \
 ```bash
 bun test
 ```
+
+The default browser origins include `https://app.wdoc.info`,
+`https://validator.wdoc.info`, `http://localhost:4200`, `http://localhost:4300`, and
+`http://127.0.0.1:4300`. If production overrides `CORS_ORIGINS`, include the validator
+origin to permit its anonymous `GET /signing-keys`. The validator sends no credentials
+or document data and does not use authentication or signing routes.

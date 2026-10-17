@@ -1,0 +1,164 @@
+{
+  "description": "Exact ZIP entry names and UTF-8 text. Directory names end in a slash. All cases are tested as STORED and DEFLATE ZIPs; no files are implicitly generated. Without a manifest, a valid layout is unsigned.",
+  "cases": [
+    {
+      "id": "index-only",
+      "entries": {
+        "index.html": "<p>Unsigned document</p>"
+      },
+      "valid": true,
+      "rootPrefix": "",
+      "logicalFiles": [
+        "index.html"
+      ]
+    },
+    {
+      "id": "index-with-resource-folders",
+      "entries": {
+        "index.html": "<p>Unsigned document</p>",
+        "images/logo.png": "resource",
+        "styles/main.css": "resource"
+      },
+      "valid": true,
+      "rootPrefix": "",
+      "logicalFiles": [
+        "images/logo.png",
+        "index.html",
+        "styles/main.css"
+      ]
+    },
+    {
+      "id": "root-index-is-authoritative",
+      "entries": {
+        "index.html": "<p>Unsigned document</p>",
+        "one/index.html": "<p>Unsigned document</p>",
+        "two/index.html": "<p>Unsigned document</p>"
+      },
+      "valid": true,
+      "rootPrefix": "",
+      "logicalFiles": [
+        "index.html",
+        "one/index.html",
+        "two/index.html"
+      ]
+    },
+    {
+      "id": "single-wrapper-implicit",
+      "entries": {
+        "Report/index.html": "<p>Unsigned document</p>"
+      },
+      "valid": true,
+      "rootPrefix": "Report/",
+      "logicalFiles": [
+        "index.html"
+      ]
+    },
+    {
+      "id": "single-wrapper-explicit",
+      "entries": {
+        "Report/": "",
+        "Report/index.html": "<p>Unsigned document</p>",
+        "Report/images/logo.png": "resource",
+        "Report/styles/main.css": "resource"
+      },
+      "valid": true,
+      "rootPrefix": "Report/",
+      "logicalFiles": [
+        "images/logo.png",
+        "index.html",
+        "styles/main.css"
+      ]
+    },
+    {
+      "id": "unicode-wrapper",
+      "entries": {
+        "Rapport 😀/index.html": "<p>Unsigned document</p>"
+      },
+      "valid": true,
+      "rootPrefix": "Rapport 😀/",
+      "logicalFiles": [
+        "index.html"
+      ]
+    },
+    {
+      "id": "two-packages",
+      "entries": {
+        "one/index.html": "<p>Unsigned document</p>",
+        "two/index.html": "<p>Unsigned document</p>"
+      },
+      "valid": false
+    },
+    {
+      "id": "second-empty-folder",
+      "entries": {
+        "Report/index.html": "<p>Unsigned document</p>",
+        "empty/": ""
+      },
+      "valid": false
+    },
+    {
+      "id": "root-file-beside-wrapper",
+      "entries": {
+        "Report/index.html": "<p>Unsigned document</p>",
+        "readme.txt": "resource"
+      },
+      "valid": false
+    },
+    {
+      "id": "root-manifest-beside-wrapper",
+      "entries": {
+        "Report/index.html": "<p>Unsigned document</p>",
+        "manifest.json": "resource"
+      },
+      "valid": false
+    },
+    {
+      "id": "metadata-beside-wrapper",
+      "entries": {
+        "Report/index.html": "<p>Unsigned document</p>",
+        "__MACOSX/._index.html": "<p>Unsigned document</p>"
+      },
+      "valid": false
+    },
+    {
+      "id": "double-wrapper",
+      "entries": {
+        "outer/inner/index.html": "<p>Unsigned document</p>"
+      },
+      "valid": false
+    },
+    {
+      "id": "uppercase-root-index",
+      "entries": {
+        "INDEX.HTML": "<p>Unsigned document</p>"
+      },
+      "valid": false
+    },
+    {
+      "id": "uppercase-wrapped-index",
+      "entries": {
+        "Report/Index.html": "<p>Unsigned document</p>"
+      },
+      "valid": false
+    },
+    {
+      "id": "no-index",
+      "entries": {
+        "Report/readme.txt": "resource"
+      },
+      "valid": false
+    },
+    {
+      "id": "empty-wrapper",
+      "entries": {
+        "Report/": ""
+      },
+      "valid": false
+    },
+    {
+      "id": "empty-archive",
+      "entries": {},
+      "valid": false
+    }
+  ]
+}

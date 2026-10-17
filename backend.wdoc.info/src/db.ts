@@ -65,7 +65,7 @@ export const initDatabase = (databaseUrl: string): DatabaseClient => {
   const getUserByEmailStmt = db.query<UserRecord, [string]>(
     "SELECT id, email, created_at, updated_at, locked_until FROM users WHERE email = ?;",
   );
-  const createUserStmt = db.query<UserRecord, [string, string, number]>(
+  const createUserStmt = db.query<UserRecord, [string, string, number, number]>(
     "INSERT INTO users (id, email, created_at, updated_at) VALUES (?, ?, ?, ?) RETURNING id, email, created_at, updated_at, locked_until;",
   );
   const updateUserLockStmt = db.query("UPDATE users SET locked_until = ?, updated_at = ? WHERE id = ?;");
@@ -79,7 +79,7 @@ export const initDatabase = (databaseUrl: string): DatabaseClient => {
   const getActiveLoginCodeStmt = db.query<LoginCodeRecord, [string, number]>(
     "SELECT id, user_id, code_hash, created_at, expires_at, invalidated_at, attempts FROM login_codes WHERE user_id = ? AND invalidated_at IS NULL AND expires_at > ? ORDER BY created_at DESC LIMIT 1;",
   );
-  const incrementAttemptsStmt = db.query(
+  const incrementAttemptsStmt = db.query<LoginCodeRecord, [string]>(
     "UPDATE login_codes SET attempts = attempts + 1 WHERE id = ? RETURNING id, user_id, code_hash, created_at, expires_at, invalidated_at, attempts;",
   );
   const invalidateCodeStmt = db.query("UPDATE login_codes SET invalidated_at = ? WHERE id = ?;");

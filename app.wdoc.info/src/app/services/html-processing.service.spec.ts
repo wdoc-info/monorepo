@@ -317,6 +317,31 @@ describe('HtmlProcessingService', () => {
     expect(httpSpy.calls.mostRecent().args[0]).toBe('assets/wdoc-styles.css');
   });
 
+  it('opens archive links in a new tab through object URLs', async () => {
+    const service = getService();
+    const http = TestBed.inject(HttpClient);
+    const createObjectUrlSpy = spyOn(URL, 'createObjectURL').and.returnValue('blob:attachment');
+    const zip = new JSZip();
+    zip.file('nested/wdoc-attachment/photos/photo.jpg', 'image-bytes');
+    spyOn(http, 'get').and.returnValue(of(''));
+
+    const processed = await service.processHtml(
+      zip,
+      '<html><head></head><body><wdoc-page><a href="wdoc-attachment/photos/photo.jpg">Photo</a><a href="#summary">Summary</a></wdoc-page></body></html>',
+      { basePath: 'nested/' },
+    );
+
+    const doc = parse(processed.html);
+    const attachmentLink = doc.querySelector<HTMLAnchorElement>('a:not([href^="#"])');
+    const fragmentLink = doc.querySelector<HTMLAnchorElement>('a[href="#summary"]');
+
+    expect(attachmentLink?.href).toBe('blob:attachment');
+    expect(attachmentLink?.target).toBe('_blank');
+    expect(attachmentLink?.rel).toBe('noopener noreferrer');
+    expect(fragmentLink?.target).toBe('');
+    expect(createObjectUrlSpy).toHaveBeenCalled();
+  });
+
   it('keeps pagination styles out of the host document', async () => {
     const service = getService();
     const http = TestBed.inject(HttpClient);
@@ -421,5 +446,43 @@ describe('HtmlProcessingService', () => {
     const barcodeEl = doc.querySelector('wdoc-barcode');
     expect(barcodeEl?.getAttribute('text')).toBe('123');
     expect(barcodeEl?.textContent).toBe('123');
+  });
+
+  it('resolves nested CSS imports, images and fonts against their containing archive files', async () => {
+    const service = getService(); const http = TestBed.inject(HttpClient);
+    const requested = spyOn(http,'get').and.returnValue(of(''));
+    const blobs: Blob[] = [];
+    spyOn(URL,'createObjectURL').and.callFake(value => {blobs.push(value as Blob);return `blob:resource-${blobs.length}`;});
+    const zip = new JSZip();
+    zip.file('nested/styles/main.css','@import "parts/theme.css" layer(theme) supports(display: grid) print; .main {background:url("../images/bg.png?version=1")}');
+    zip.file('nested/styles/parts/theme.css','@import "../main.css"; @font-face {font-family:Doc;src:url("../../fonts/doc.woff2")} .theme {color:navy}');
+    zip.file('nested/images/bg.png','Image'); zip.file('nested/fonts/doc.woff2','Font');
+    const result = await service.processHtml(zip,'<html><head><link rel="stylesheet" href="styles/main.css"></head><body><wdoc-page style="background:url(images/bg.png)">Body</wdoc-page></body></html>',{basePath:'nested/'});
+    const doc = parse(result.html), css = doc.querySelector('style')!.textContent!;
+    expect(css).toContain('@media print'); expect(css).toContain('.theme'); expect(css).not.toContain('@import');
+    expect(css).toContain('@layer theme'); expect(css).toContain('@supports (display: grid)');
+    expect(css).toContain('blob:resource-'); expect(doc.querySelector('wdoc-page')!.getAttribute('style')).toContain('blob:resource-');
+    expect(blobs.map(b=>b.type).sort()).toEqual(['font/woff2','image/png']);
+    expect(requested.calls.count()).toBe(1); expect(requested.calls.first().args[0]).toBe('assets/wdoc-styles.css');
+    service.cleanup();
+  });
+
+  it('does not fetch external CSS dependencies or reuse a previous document asset', async () => {
+    const service = getService(); spyOn(TestBed.inject(HttpClient),'get').and.returnValue(of(''));
+    const blobs: Blob[] = [];
+    spyOn(URL,'createObjectURL').and.callFake(value=>{blobs.push(value as Blob);return `blob:asset-${blobs.length}`;});
+    const html = '<html><head><style>@import "https://external.example/style.css"; .a {background:url("asset.png")} .remote {background:url("https://external.example/image.png")}</style></head><body><wdoc-page>Body</wdoc-page></body></html>';
+    for (const value of ['First','Second']) {const zip=new JSZip();zip.file('asset.png',value);const doc=parse((await service.processHtml(zip,html)).html);expect(doc.querySelector('style')!.textContent).not.toContain('https://external.example');}
+    expect(await blobs[0].text()).toBe('First'); expect(await blobs[1].text()).toBe('Second');
+    service.cleanup();
+  });
+
+  it('keeps embedded stylesheet text from breaking out of a serialized style element', async () => {
+    const service = getService(); spyOn(TestBed.inject(HttpClient),'get').and.returnValue(of(''));
+    const zip=new JSZip();zip.file('style.css','p::before {content:"</style><img src=x onerror=alert(1)>"} q::before {content:"url(fake.png) /* literal */"}');
+    const processed=await service.processHtml(zip,'<html><head><link rel="stylesheet" href="style.css"></head><body><wdoc-page>Body</wdoc-page></body></html>');
+    const doc=parse(processed.html);expect(doc.querySelector('img')).toBeNull();expect(doc.querySelector('style')!.textContent).toContain('<\\/style>');
+    expect(doc.querySelector('style')!.textContent).toContain('url(fake.png) /* literal */');
+    service.cleanup();
   });
 });

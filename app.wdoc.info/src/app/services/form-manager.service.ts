@@ -1,9 +1,9 @@
 import { Injectable } from '@angular/core';
 import JSZip from 'jszip';
+import { assertFiles, assertManifest, decodeUtf8, isIdentifier, isRecord, parseJson, verifyDocument, safePath } from '../signatures/core';
+import { readDocumentArchive } from '../signatures/archive';
 import { APP_VERSION } from '../config/app.config';
 import {
-  ManifestMetaOverrides,
-  WdocManifest,
   generateManifest,
   serializeManifest,
 } from './manifest-builder';
@@ -14,8 +14,12 @@ import { type ZipContainer } from './zip-reader';
 export class FormManagerService {
   constructor(private authService: AuthService) {}
 
-  async populateFormsFromZip(zip: ZipContainer, doc: Document): Promise<void> {
-    const formsFolder = zip.folder('wdoc-form');
+  async populateFormsFromZip(
+    zip: ZipContainer,
+    doc: Document,
+    basePath = '',
+  ): Promise<void> {
+    const formsFolder = zip.folder(`${basePath}wdoc-form`);
     if (!formsFolder) {
       return;
     }
@@ -29,31 +33,23 @@ export class FormManagerService {
         root && entry.name.startsWith(root) ? entry.name.slice(root.length) : entry.name;
       let data: Record<string, string>;
       try {
-        data = JSON.parse((await entry.async('text')) as string);
+        data = parseJson(decodeUtf8(await entry.async('uint8array') as Uint8Array));
+        if (!isRecord(data)) continue;
       } catch {
         continue;
       }
 
       const base = relativeName.replace(/\.json$/, '');
-      let form: HTMLFormElement | null = null;
-      if (base.startsWith('form-')) {
-        const idx = parseInt(base.slice(5), 10) - 1;
-        if (!isNaN(idx) && idx >= 0 && idx < formElements.length) {
-          form = formElements[idx] as HTMLFormElement;
-        }
-      } else {
-        form = doc.getElementById(base) as HTMLFormElement;
-      }
+      const named = doc.getElementById(base);
+      let form = named instanceof HTMLFormElement ? named : null;
+      const position = /^form-([1-9][0-9]*)$/.exec(base);
+      if (!form && position) form = formElements[Number(position[1]) - 1] ?? null;
       if (!form) {
         continue;
       }
 
       for (const [key, value] of Object.entries(data)) {
-        const control = form.querySelector(`[name="${key}"]`) as
-          | HTMLInputElement
-          | HTMLSelectElement
-          | HTMLTextAreaElement
-          | null;
+        const control = Array.from(form.elements).find(el => el.getAttribute('name') === key) as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement | undefined;
         if (!control) {
           continue;
         }
@@ -70,7 +66,7 @@ export class FormManagerService {
 
           control.addEventListener('change', removeExistingLink);
 
-          if (typeof value === 'string' && value) {
+          if (typeof value === 'string' && safePath(value) && !value.includes('/')) {
             const fileEntry = formsFolder.file(value);
             if (fileEntry) {
               const mime = this.guessMimeType(value);
@@ -90,9 +86,7 @@ export class FormManagerService {
         } else if (control instanceof HTMLInputElement && control.type === 'checkbox') {
           control.checked = value === 'true' || value === 'on' || value === '1';
         } else if (control instanceof HTMLInputElement && control.type === 'radio') {
-          const radioGroup = form.querySelectorAll<HTMLInputElement>(
-            `input[type="radio"][name="${key}"]`,
-          );
+          const radioGroup = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="radio"]')).filter(r => r.name === key);
           radioGroup.forEach((radio) => {
             radio.checked = radio.value === value;
           });
@@ -120,20 +114,35 @@ export class FormManagerService {
       }
     }
 
-    const newZip = await JSZip.loadAsync(originalArrayBuffer);
+    const {zip: newZip, files} = await readDocumentArchive(originalArrayBuffer);
+    if (files['manifest.json']) {
+      const existing = parseJson(decodeUtf8(files['manifest.json']));
+      assertManifest(existing);
+      if ((await verifyDocument(existing, files, [])).content.status === 'file-modified') throw new Error('Original signed content was modified.');
+    }
+    const names = forms.map((form, index) => {
+      if (form.id && !isIdentifier(form.id)) throw new Error('Unsafe form ID.');
+      return `${form.id || `form-${index + 1}`}.json`;
+    });
+    if (new Set(names).size !== names.length) throw new Error('Ambiguous draft form IDs.');
     const formsFolder = newZip.folder('wdoc-form');
-    let idx = 1;
-    for (const form of forms) {
+    const attachmentNames = new Set<string>();
+    for (const [index, form] of forms.entries()) {
       const fd = new FormData(form as HTMLFormElement);
-      const data: Record<string, unknown> = {};
+      const data: Record<string, unknown> = Object.create(null);
       for (const [key, value] of fd.entries()) {
         if (typeof value === 'string') {
           data[key] = value;
         } else {
-          const input = form.querySelector(`[name="${key}"]`) as HTMLInputElement | null;
+          const input = Array.from(form.querySelectorAll<HTMLInputElement>('input[type="file"]')).find(el => el.name === key);
           const file = input?.files?.[0] as File | undefined;
           const existingFileName = input?.dataset['savedFile'];
-          if (file && file.size > 0 && file.name) {
+          if (existingFileName && (!safePath(existingFileName) || existingFileName.includes('/'))) throw new Error('Unsafe saved attachment name.');
+          if (file && file.name) {
+            if (!safePath(file.name) || file.name.includes('/')) throw new Error('Unsafe attachment name.');
+            if (file.size > 10_000_000) throw new Error('Attachment exceeds archive limits.');
+            if (names.includes(file.name) || attachmentNames.has(file.name)) throw new Error('Conflicting draft attachment name.');
+            attachmentNames.add(file.name);
             if (existingFileName && existingFileName !== file.name) {
               formsFolder?.remove(existingFileName);
               newZip.remove(`wdoc-form/${existingFileName}`);
@@ -149,11 +158,13 @@ export class FormManagerService {
           }
         }
       }
-      const id = form.getAttribute('id');
-      const name = id ? `${id}.json` : `form-${idx++}.json`;
-      formsFolder?.file(name, JSON.stringify(data));
+      formsFolder?.file(names[index]!, JSON.stringify(data));
     }
     await this.addManifest(newZip);
+    if (Object.keys(newZip.files).length > 1000) throw new Error('Too many archive entries.');
+    const output: Record<string, Uint8Array> = Object.create(null);
+    for (const entry of Object.values(newZip.files)) if (!entry.dir) output[entry.name] = await entry.async('uint8array');
+    assertFiles(output);
     const blob = await newZip.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -178,42 +189,23 @@ export class FormManagerService {
   }
 
   private async addManifest(zip: JSZip): Promise<void> {
-    const manifestMeta = await this.extractExistingMeta(zip);
+    const existing = zip.file('manifest.json');
+    if (existing) {
+      const parsed = parseJson(decodeUtf8(await existing.async('uint8array')));
+      assertManifest(parsed);
+      // Draft changes preserve the protected scope and immutable submissions.
+      const drafts = await generateManifest(zip);
+      parsed.runtime.forms = drafts.runtime.forms;
+      parsed.runtime.updatedAt = new Date().toISOString();
+      zip.file('manifest.json', serializeManifest(parsed));
+      return;
+    }
     const creator = this.authService.getCurrentUserEmail();
-    const mergedMeta: ManifestMetaOverrides = {
-      ...manifestMeta,
+    const manifest = await generateManifest(zip, {
       appVersion: APP_VERSION,
-    };
-    if (creator) {
-      mergedMeta.creator = creator;
-    } else {
-      delete mergedMeta.creator;
-    }
-
-    const manifest = await generateManifest(zip, mergedMeta);
-    zip.remove('content_manifest.json');
+      ...(creator ? { creator } : {}),
+    });
     zip.file('manifest.json', serializeManifest(manifest));
-  }
-
-  private async extractExistingMeta(zip: JSZip): Promise<ManifestMetaOverrides> {
-    const manifestFile = zip.file('manifest.json');
-    if (!manifestFile) {
-      return {};
-    }
-
-    try {
-      const content = await manifestFile.async('text');
-      const parsed = JSON.parse(content) as WdocManifest;
-      return {
-        docTitle: parsed.meta?.docTitle,
-        creator: parsed.meta?.creator,
-        appVersion: parsed.meta?.appVersion,
-        creationDate: parsed.meta?.creationDate,
-        docVersion: parsed.meta?.docVersion,
-      } satisfies ManifestMetaOverrides;
-    } catch {
-      return {};
-    }
   }
 
   private guessMimeType(name: string): string | undefined {

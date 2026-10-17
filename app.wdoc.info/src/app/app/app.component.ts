@@ -9,6 +9,9 @@ import {
   ChangeDetectorRef,
   NgZone,
 } from '@angular/core';
+import { WdocSignatureService } from '../signatures/signature.service';
+import { runtimePath } from '../signatures/core';
+import { SignaturePanelComponent } from '../signatures/signature-panel.component';
 import { CommonModule } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { NavbarComponent } from '../navbar/navbar.component';
@@ -35,6 +38,7 @@ import { EditorAsset } from '../editor/document-editor.component';
   standalone: true,
   imports: [
     CommonModule,
+    SignaturePanelComponent,
     NavbarComponent,
     ViewerComponent,
     TopbarComponent,
@@ -49,6 +53,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   htmlContent: SafeHtml | null = null;
   showFormSave = false;
   showDocumentSave = false;
+  savingRevision = false;
   isNavOpen = false;
   isEditing = false;
   sidenavMode: MatDrawerMode = 'over';
@@ -60,7 +65,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly maxZoom = 200;
   documentTitle = this.defaultTitle;
   editorContent = '<p>Start writing...</p>';
-  private originalArrayBuffer: ArrayBuffer | null = null;
+  originalArrayBuffer: ArrayBuffer | null = null;
   private docVersionCounter = 0;
   private loadedDocumentHtml = '';
   private editableContentFromLoaded = '<p>Start writing...</p>';
@@ -83,6 +88,7 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     private cdr: ChangeDetectorRef,
     private zone: NgZone,
     private documentCreatorService: DocumentCreatorService,
+    private signatureService: WdocSignatureService,
   ) {}
 
   attachments: LoadedFile[] = [];
@@ -384,12 +390,19 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
     this.cdr.markForCheck();
   }
 
+  onSignedArchive(buffer: ArrayBuffer): void {
+    // Preserve in-progress DOM drafts; immutable signed snapshots live in the archive.
+    this.originalArrayBuffer = buffer;
+    this.cdr.markForCheck();
+  }
+
   onFormInteraction(): void {
     this.showFormSave = true;
   }
 
   startNewDocument(): void {
     this.isEditing = true;
+    this.originalArrayBuffer = null;
     this.documentTitle = this.newDocumentTitle;
     this.updateWindowTitle(this.documentTitle);
     this.editorContent = '<p>Start writing...</p>';
@@ -456,6 +469,24 @@ export class AppComponent implements OnInit, AfterViewInit, OnDestroy {
       this.buildDocumentAssets(),
     );
     this.showDocumentSave = false;
+  }
+
+  async onSaveSignedRevision(): Promise<void> {
+    if (!this.originalArrayBuffer || this.savingRevision) return;
+    this.savingRevision = true;
+    try {
+      const local = await this.signatureService.read(this.originalArrayBuffer);
+      let state = local;
+      const blob = await this.documentCreatorService.buildWdocBlob(this.editorContent, this.buildNextDocVersion(), this.documentTitle, this.buildDocumentAssets());
+      const edited = await this.signatureService.read(await blob.arrayBuffer());
+      const files = Object.fromEntries(Object.entries(edited.files).filter(([path]) => !runtimePath(path)));
+      state = await this.signatureService.operate(state, 'revisions', { files, appVersion: edited.manifest.meta.appVersion, docTitle: this.documentTitle, sign: true });
+      const buffer = await this.signatureService.archive(state);
+      await this.handleLoadedWdoc(this.wdocLoaderService.loadWdocFromArrayBuffer(buffer));
+      this.signatureService.download(buffer);
+    } catch (e) {
+      await this.dialogService.openAlert((e as Error).message, 'Revision could not be signed');
+    } finally { this.savingRevision = false; this.cdr.markForCheck(); }
   }
 
   private buildNextDocVersion(): string {
