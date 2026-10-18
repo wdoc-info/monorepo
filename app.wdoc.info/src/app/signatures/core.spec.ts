@@ -26,7 +26,7 @@ describe('Portable wdoc verification', () => {
   });
   beforeEach(async () => {
     files = { 'index.html': encoder.encode('<form id=contract><input name=answer></form>'), 'style.css': encoder.encode('body { color: black }') };
-    manifest = { manifestVersion: '1.0', meta: { docId: 'doc-1', appVersion: '1', createdAt: signedAt, contentUpdatedAt: signedAt }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { submissions: {}, revisions: [], forms: {} }, signatures: { document: [], forms: [] } };
+    manifest = { manifestVersion: '0.1', meta: { docId: 'doc-1', appVersion: '1', createdAt: signedAt, contentUpdatedAt: signedAt }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { submissions: {}, revisions: [], forms: {} }, signatures: { document: [], forms: [] } };
   });
   it('canonicalizes RFC values and rejects ambiguous JSON and invalid Unicode', async () => {
     expect(jcs({ z: null, a: [1e30, 4.5, .002, 1e-27] })).toBe('{"a":[1e+30,4.5,0.002,1e-27],"z":null}');
@@ -39,8 +39,8 @@ describe('Portable wdoc verification', () => {
   });
   it('returns unsigned without treating matching hashes as authentication', async () => {
     const report = await verifyDocument(manifest, files, []); expect(report.document[0].status).toBe('unsigned'); expect(report.content.status).toBe('valid-untrusted');
-    const bad = structuredClone(manifest); bad.manifestVersion = '2.0' as '1.0'; expect(() => assertManifest(bad)).toThrow();
-    bad.manifestVersion = '1.0'; bad.content.files['../bad'] = 'x'; expect(() => assertManifest(bad)).toThrow();
+    const bad = structuredClone(manifest); bad.manifestVersion = '2.0' as '0.1'; expect(() => assertManifest(bad)).toThrow();
+    bad.manifestVersion = '0.1'; bad.content.files['../bad'] = 'x'; expect(() => assertManifest(bad)).toThrow();
   });
   it('authenticates exact original files and excludes evolving runtime', async () => {
     await docSign(); const before = await documentDigest(manifest);

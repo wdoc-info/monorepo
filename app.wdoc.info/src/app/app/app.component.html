@@ -7,6 +7,8 @@
   >
     <app-navbar
       (fileSelected)="onFileSelected($event)"
+      (localFileSelected)="openLocalFile($event)"
+      [busy]="savingDocument || savingRevision || openingDocument || autosaving || applyingVersion"
       [showSave]="showFormSave || showDocumentSave"
       (save)="onSaveForms()"
       (closeNav)="closeNav()"
@@ -22,6 +24,8 @@
         [navOpen]="isNavOpen"
         [title]="documentTitle"
         [isEditing]="isEditing"
+        [savingDocument]="savingDocument || savingRevision || applyingVersion || autosaving"
+        [canSaveAs]="localFiles.canSaveAs"
         [zoom]="zoom"
         [hasDocument]="!isEditing && !!htmlContent"
         [attachments]="attachments"
@@ -29,14 +33,31 @@
         (toggleNav)="toggleNav()"
         (saveForm)="onSaveForms()"
         (saveDocument)="onSaveNewDocument()"
+        (saveCopy)="onSaveNewDocument(true)"
         (editDocument)="startEditingLoadedDocument()"
         (titleChange)="onDocumentTitleChange($event)"
         (zoomChange)="onZoomChange($event)"
       ></app-topbar>
+      @if (localFiles.activeFile()) {
+        <p class="local-file-status" role="status">{{ savingDocument ? 'Saving…' : localFiles.status() }}{{ showDocumentSave && !savingDocument ? ' · Unsaved changes' : '' }}</p>
+      }
+      @if (saveError) { <p class="save-error" role="alert">{{ saveError }}</p> }
+      @if (localFiles.activeFile() && (saveError.includes('outside wdoc') || history.error().includes('outside wdoc'))) {
+        <button type="button" (click)="mergeChangedLocalFile()" [disabled]="savingDocument || savingRevision">Merge changed local file</button>
+      }
+      @if (fonts.results().length) {
+        <details class="font-status" [open]="fonts.hasProblems()"><summary>{{ fonts.hasProblems() ? 'Some fonts could not be loaded; fallback fonts are in use' : 'Document fonts' }}</summary>
+          @for (font of fonts.results(); track font.url) { <p [attr.role]="font.status === 'mismatch' ? 'alert' : null">{{ font.url }} · {{ font.detail }}</p> }
+        </details>
+      }
+      @if (originalArrayBuffer || isEditing || history.recovery()) {
+        <app-history-panel [busy]="savingDocument || savingRevision || applyingVersion || autosaving" (restore)="onRestoreDraft($event)" (importRequested)="onMergeFile($event)" (merged)="onMergedDraft($event)"></app-history-panel>
+      }
       @if (!isEditing && originalArrayBuffer) {
         <app-signature-panel [buffer]="originalArrayBuffer" [formRoot]="viewer ? (viewer.documentRoot || viewer.nativeElement || null) : null" (archiveChanged)="onSignedArchive($event)"></app-signature-panel>
       }
       @if (isEditing) {
+        <label class="font-status"><input type="checkbox" [checked]="includeFonts" (change)="onIncludeFontsChange($any($event.target).checked)" /> Include fonts for offline viewing</label>
         @if (originalArrayBuffer) {
           <div class="revision-actions">
             <button type="button" (click)="onSaveSignedRevision()" [disabled]="savingRevision">{{ savingRevision ? 'Signing revision…' : 'Save as new signed content revision' }}</button>
@@ -44,6 +65,7 @@
           </div>
         }
         <app-document-editor
+          [attr.inert]="applyingVersion ? '' : null"
           [content]="editorContent"
           (contentChange)="onEditorContentChange($event)"
           (assetsChange)="onEditorAssetsChange($event)"

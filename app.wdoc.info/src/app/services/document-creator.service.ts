@@ -2,13 +2,14 @@ import { Injectable } from '@angular/core';
 import JSZip from 'jszip';
 import { APP_VERSION } from '../config/app.config';
 import { AuthService } from './auth.service';
+import { ExternalFontService } from './external-font.service';
+import { runtimePath, safePath, verifyDocument, type Files } from '../signatures/core';
 import {
   ManifestMetaOverrides,
   generateManifest,
   serializeManifest,
 } from './manifest-builder';
 import {
-  DEFAULT_DOCUMENT_FONT_FAMILY,
   DEFAULT_DOCUMENT_LINE_HEIGHT,
 } from '../layout/layout.constants';
 
@@ -20,7 +21,7 @@ export interface DocumentAsset {
 
 @Injectable({ providedIn: 'root' })
 export class DocumentCreatorService {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private fonts: ExternalFontService) {}
 
   async downloadWdocFromHtml(
     html: string,
@@ -28,6 +29,7 @@ export class DocumentCreatorService {
     docTitle: string,
     filename?: string,
     assets: DocumentAsset[] = [],
+    includeFonts = false,
   ) {
     const normalizedTitle = docTitle?.trim() || 'WDOC document';
     const resolvedFilename =
@@ -37,6 +39,7 @@ export class DocumentCreatorService {
       docVersion,
       normalizedTitle,
       assets,
+      includeFonts,
     );
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -50,19 +53,27 @@ export class DocumentCreatorService {
     docVersion: string,
     docTitle: string,
     assets: DocumentAsset[] = [],
+    includeFonts = false,
   ): Promise<Blob> {
     const zip = new JSZip();
-    const normalizedHtml = this.replaceAssetUrls(html, assets);
+    const normalizedHtml = this.replaceAssetUrls(this.fonts.restoreFamilies(html), assets);
     const wrapped = this.wrapHtml(normalizedHtml, docTitle);
     zip.file('index.html', wrapped);
+    for (const [path, bytes] of Object.entries(this.fonts.localAssets)) zip.file(path, bytes, { createFolders: false });
     zip.folder('wdoc-form');
-    const assetsFolder = zip.folder('wdoc-assets');
+    zip.folder('wdoc-assets');
     assets.forEach((asset) => {
-      const cleanedPath = asset.path.replace(/^wdoc-assets\//, '');
-      assetsFolder?.file(cleanedPath, asset.file);
+      if (!safePath(asset.path) || runtimePath(asset.path) || ['index.html', 'manifest.json'].includes(asset.path)) throw new Error('Invalid document asset path.');
+      zip.file(asset.path, asset.file, { createFolders: false });
     });
-    const manifest = await this.generateManifest(zip, docVersion, docTitle);
-    zip.file('manifest.json', manifest);
+    const source: Files = Object.create(null);
+    for (const entry of Object.values(zip.files)) if (!entry.dir) source[entry.name] = await entry.async('uint8array');
+    const prepared = await this.fonts.prepare(source, includeFonts ? 'embed' : 'pin');
+    for (const [path, bytes] of Object.entries(prepared.files)) zip.file(path, bytes, { createFolders: false });
+    const manifest = await generateManifest(zip, this.buildManifestMeta(docVersion, docTitle));
+    if (Object.keys(prepared.externalFonts).length) manifest.content.externalFonts = prepared.externalFonts;
+    if ((await verifyDocument(manifest, prepared.files, [])).content.status === 'file-modified') throw new Error('The document contains unsupported or unprotected rendering resources.');
+    zip.file('manifest.json', serializeManifest(manifest));
     return zip.generateAsync({ type: 'blob' });
   }
 
@@ -91,7 +102,16 @@ export class DocumentCreatorService {
       }
     });
 
-    return doc.body.innerHTML || '';
+    for (const element of Array.from(doc.querySelectorAll('[href], [src], [style]'))) {
+      for (const attribute of ['href', 'src', 'style']) {
+        let value = element.getAttribute(attribute);
+        if (!value) continue;
+        for (const [url, path] of assetMap) if (url.startsWith('blob:')) value = value.replaceAll(url, path);
+        element.setAttribute(attribute, value);
+      }
+    }
+
+    return [...doc.head.querySelectorAll('style,link[rel="stylesheet"]')].map(node => node.outerHTML).join('\n') + (doc.body.innerHTML || '');
   }
 
   private wrapHtml(content: string, title: string): string {
@@ -102,7 +122,8 @@ export class DocumentCreatorService {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${this.escapeHtml(title)}</title>
   <style>
-    .wdoc-document { font-family: ${DEFAULT_DOCUMENT_FONT_FAMILY}; margin: 32px; line-height: ${DEFAULT_DOCUMENT_LINE_HEIGHT}; word-break: normal; overflow-wrap: break-word; white-space: normal; }
+    ${this.fonts.authoringCss.replace(/<\/style/gi, '<\\/style')}
+    .wdoc-document { font-family: ${this.fonts.restoreFamilies(this.fonts.defaultFamily()).replace(/<\/style/gi, '<\\/style')}; margin: 32px; line-height: ${DEFAULT_DOCUMENT_LINE_HEIGHT}; word-break: normal; overflow-wrap: break-word; white-space: normal; }
     .wdoc-document h1, .wdoc-document h2, .wdoc-document h3, .wdoc-document h4 { margin-top: 1.6em; }
     .wdoc-document p { margin: 0.8em 0; }
     .wdoc-document p:empty::before,

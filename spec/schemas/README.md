@@ -5,7 +5,7 @@ These JSON Schema Draft-07 documents define the structural reader/producer profi
 | File | Validated value |
 | --- | --- |
 | [common.schema.json](common.schema.json) | Shared primitive, path, scope, wrapper, submission, and revision definitions |
-| [manifest.schema.json](manifest.schema.json) | Complete manifest `1.0`, when the optional manifest file is present |
+| [manifest.schema.json](manifest.schema.json) | Complete manifest `0.1`, when the optional manifest file is present |
 | [protected-header.schema.json](protected-header.schema.json) | Decoded producer JOSE protected header |
 | [document-jws.schema.json](document-jws.schema.json) | Decoded commitment-only document JWS payload |
 | [form-jws.schema.json](form-jws.schema.json) | Decoded form JWS payload, including personal/platform mode constraints |

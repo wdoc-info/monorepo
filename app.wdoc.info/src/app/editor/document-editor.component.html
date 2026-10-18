@@ -1,5 +1,31 @@
-<div class="editor-wrapper">
+<div class="editor-wrapper" [style.--document-font-family]="fonts.defaultFamily()">
   <div class="editor-toolbar" role="toolbar" aria-label="Editor tools">
+    <div class="font-picker" role="group" aria-label="Font selection">
+      <label for="google-font-search">Search Google Fonts</label>
+      <input id="google-font-search" type="search" placeholder="Search fonts…"
+        [value]="fontSearch()" (input)="fontSearch.set($any($event.target).value)" />
+      <label for="document-font">Font</label>
+      <select id="document-font" aria-label="Document font" [ngModel]="selectedFont"
+        (ngModelChange)="selectFont($event)" [disabled]="addingFont" [attr.aria-busy]="addingFont">
+        <option value="">Default font</option>
+        @if (fonts.families().length) {
+          <optgroup label="Document fonts">
+            @for (font of fonts.families(); track font.alias) {
+              <option [value]="font.alias">{{ font.name }}</option>
+            }
+          </optgroup>
+        }
+        <optgroup label="Google Fonts">
+          @for (font of googleFonts(); track font.family) {
+            <option [value]="'google:' + font.family">{{ font.family }}</option>
+          }
+        </optgroup>
+      </select>
+      <span class="font-status" role="status" aria-live="polite">
+        @if (addingFont) { Loading font… }
+        @else if (fontSearch()) { {{ googleFonts().length }} Google Fonts found }
+      </span>
+    </div>
     <button type="button" (click)="toggleBold()" [class.active]="isActive('bold')">
       Bold
     </button>
@@ -42,6 +68,7 @@
       <input #imageInput type="file" accept="image/*" (change)="onImageSelected($event)" />
     </label>
   </div>
+  @if (fontError) { <p class="font-error" role="alert">{{ fontError }}</p> }
 
   <div
     *ngIf="selectedImage"
@@ -65,6 +92,13 @@
     </button>
   </div>
 
+  <details class="font-controls"><summary>Add an external font</summary>
+    <label>Family <input aria-label="Font family" [(ngModel)]="fontFamily" placeholder="Inter" /></label>
+    <label>HTTPS URL <input aria-label="Font URL" [(ngModel)]="fontUrl" placeholder="https://…/font.woff2 or a font stylesheet" /></label>
+    <label>Weight <select aria-label="Font weight" [(ngModel)]="fontWeight"><option value="400">Regular</option><option value="700">Bold</option><option value="100 900">Variable</option></select></label>
+    <label>Style <select aria-label="Font style" [(ngModel)]="fontStyle"><option value="normal">Normal</option><option value="italic">Italic</option></select></label>
+    <button type="button" (click)="addFont()" [disabled]="addingFont">{{ addingFont ? 'Loading font…' : 'Add font' }}</button>
+  </details>
   <wdoc-container class="editor-container" (click)="handleEditorClick($event)">
     <wdoc-content class="editor-content">
       <div class="page-list">

@@ -35,7 +35,7 @@ Request bodies and cryptographic/validation error values must not be logged by a
 
 ## Commitments and signed scope
 
-Original document integrity uses manifest 1.0:
+Original document integrity uses manifest 0.1:
 
 ```text
 documentDigest = base64url(SHA256(UTF8(JCS({manifestVersion, meta, content}))))
@@ -148,7 +148,7 @@ origins to this policy. Invalid/unavailable responses clear usable online keys.
 
 ## Formats and validation
 
-The [normative JSON schemas](../../spec/schemas/README.md) describe the optional complete manifest 1.0, required local nonce wrappers, and one commitment-only decoded JWS profile. A locally verified original attestation is required for form/seal requests. The format has no historical profiles or migration paths.
+The [normative JSON schemas](../../spec/schemas/README.md) describe the optional complete manifest 0.1, required local nonce wrappers, and one commitment-only decoded JWS profile. A locally verified original attestation is required for form/seal requests. The format has no historical profiles or migration paths.
 
 A document needs only a UTF-8 `index.html`, either at ZIP root or immediately inside one enclosing folder. With a root index, multiple resource/runtime folders are allowed. Without one, multiple root folders (including empty or OS-metadata folders), sibling root files, extra wrapper depth, and case-insensitive index searches are rejected. All readers resolve identical logical paths; repacking under one wrapper does not change signed bytes, digests, or seals. Exports use root-level document paths.
 
@@ -177,3 +177,15 @@ The offline registry format is `{keys:[...],allowedOrigins:["https://sig.wdoc.in
 Tests inspect HTTP request bodies, decoded JWS claims and persisted database rows to ensure document content, names, identifiers and nonces do not leave the browser. The Chromium integration test uses a real ephemeral commitment backend, signs and downloads an archive, co-signs an exchanged file in a second account/browser, seals locally and preserves history through a signed revision.
 
 Standards: [JCS RFC 8785](https://www.rfc-editor.org/rfc/rfc8785), [JWS RFC 7515](https://www.rfc-editor.org/rfc/rfc7515), [JWK RFC 7517](https://www.rfc-editor.org/rfc/rfc7517), [JWA RFC 7518](https://www.rfc-editor.org/rfc/rfc7518), [JOSE/JWT security RFC 8725](https://www.rfc-editor.org/rfc/rfc8725).
+
+## External fonts
+
+Manifest `0.1` protects remote `@font-face` binaries through
+`content.externalFonts`. The viewer downloads approved font sources locally and
+checks their hashes before use. The attestation API receives commitments only,
+including when the document uses remote fonts. It receives no font URLs or bytes.
+The offline CLI reports font resources separately: absent copies are not checked,
+valid `wdoc-font-cache/<digest>` copies are verified locally, and invalid cache
+paths/hashes cause a nonzero exit without changing the meaning of a valid
+original-content signature. The standalone web validator uses the same boundary
+and never fetches document-selected font URLs.

@@ -1,4 +1,4 @@
-import { archiveCommitment, assertManifest, commitment, documentDigest, encoder, formIds, inventory, isIdentifier, isRecord, jcs, newNonce, runtimePath, safePath, scopeOf, snapshotCommitment, verifyDocument, verifyJws, type Files, type KeyRecord, type Manifest, type Signature, type Submission } from './core';
+import { archiveCommitment, assertFiles, assertManifest, commitment, documentDigest, encoder, formIds, inventory, isIdentifier, isRecord, jcs, newNonce, runtimePath, safePath, scopeOf, snapshotCommitment, verifyDocument, verifyJws, type Files, type KeyRecord, type Manifest, type Signature, type Submission } from './core';
 
 export interface LocalDocument { manifestText?: string; manifest: Manifest; files: Record<string, string>; version: number }
 export interface PreparedAttestation {
@@ -22,13 +22,9 @@ export async function encodeLocal(bytes: Uint8Array): Promise<string> {
   return btoa(text);
 }
 function validateSize(state: LocalDocument) {
-  const bytes = decodeLocal(state); let total = 0;
-  if (Object.keys(bytes).length > 1000) throw new Error('Too many archive files.');
-  for (const [path, value] of Object.entries(bytes)) {
-    if (!safePath(path) || /\.(js|mjs|cjs|exe|sh|bat|cmd)$/i.test(path)) throw new Error('Unsafe archive path.');
-    total += value.length;
-    if (value.length > 10_000_000 || total > 30_000_000) throw new Error('Archive exceeds signing limits.');
-  }
+  const bytes = decodeLocal(state);
+  assertFiles(bytes);
+  for (const path of Object.keys(bytes)) if (!path.startsWith('.git/') && /\.(js|mjs|cjs|exe|sh|bat|cmd)$/i.test(path)) throw new Error('Unsafe archive path.');
 }
 async function documentProof(state: LocalDocument, keys: KeyRecord[], digest: string): Promise<{ jws: string; commitment: string }> {
   const report = await verifyDocument(state.manifest, decodeLocal(state), keys);
@@ -60,7 +56,7 @@ export async function prepareAttestation(source: LocalDocument, action: string, 
     }
     const old = manifest;
     const now = new Date().toISOString();
-    manifest = { manifestVersion: '1.0', meta: { ...old.meta, contentUpdatedAt: now, appVersion: input.appVersion, docTitle: input.docTitle }, content: { hashAlgorithm: 'SHA-256', files: await inventory(originals) }, runtime: old.runtime, signatures: { document: [], forms: old.signatures.forms } };
+    manifest = { manifestVersion: '0.1', meta: { ...old.meta, contentUpdatedAt: now, appVersion: input.appVersion, docTitle: input.docTitle }, content: { hashAlgorithm: 'SHA-256', files: await inventory(originals), ...(input.externalFonts ? { externalFonts: input.externalFonts } : {}) }, runtime: old.runtime, signatures: { document: [], forms: old.signatures.forms } };
     manifest.runtime.revisions.push({ scope: scopeOf(old), signatures: old.signatures.document, files: archived });
     manifest.runtime.updatedAt = now;
     state.manifest = manifest; delete state.manifestText;

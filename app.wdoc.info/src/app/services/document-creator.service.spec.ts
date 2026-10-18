@@ -165,4 +165,9 @@ describe('DocumentCreatorService', () => {
     expect(manifestJson.meta.appVersion).toBe(APP_VERSION);
     expect(manifestJson.meta.docVersion).toBe('1.0.0');
   });
+  it('rejects assets that could overwrite the entry point, manifest, or runtime files', async () => {
+    for (const path of ['index.html', 'manifest.json', '../outside', 'wdoc-form/answers.json']) {
+      await expectAsync(service.buildWdocBlob('<p>Text</p>', '1.0.0', 'Document', [{ path, file: new Blob(['bad']) }])).toBeRejectedWithError('Invalid document asset path.');
+    }
+  });
 });

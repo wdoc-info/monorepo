@@ -34,7 +34,7 @@
         },
         {
           "not": {
-            "pattern": "^(manifest\\.json$|(?:wdoc-form|submissions|seals|revisions)/)"
+            "pattern": "^(manifest\\.json$|(?:\\.git|wdoc-form|wdoc-font-cache|submissions|seals|revisions)/)"
           }
         }
       ]
@@ -171,6 +171,9 @@
           "additionalProperties": {
             "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
           }
+        },
+        "externalFonts": {
+          "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/externalFonts"
         }
       },
       "required": [
@@ -183,7 +186,7 @@
       "type": "object",
       "properties": {
         "manifestVersion": {
-          "const": "1.0"
+          "const": "0.1"
         },
         "meta": {
           "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/meta"
@@ -362,6 +365,19 @@
         "files"
       ],
       "additionalProperties": false
+    },
+    "externalFonts": {
+      "type": "object",
+      "maxProperties": 64,
+      "propertyNames": {
+        "type": "string",
+        "maxLength": 2048,
+        "pattern": "^https://[^\\s\\\\{};\"'<>#]+$(?![\\s\\S])"
+      },
+      "additionalProperties": {
+        "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/digest"
+      },
+      "description": "Canonical credential-free HTTPS font URLs to SHA-256 base64url digests. URL canonicalization and @font-face-only usage are checked by WDOC-FORMAT."
     }
   }
 }

@@ -84,3 +84,7 @@ app-viewer {
     display: none !important;
   }
 }
+.font-status { display:block; margin:8px 16px; padding:8px; overflow-wrap:anywhere; }
+.local-file-status, .save-error { margin: 8px 24px; overflow-wrap: anywhere; font: 14px/1.5 Arial, sans-serif; }
+.local-file-status { color: #475569; }
+.save-error { color: #b91c1c; }

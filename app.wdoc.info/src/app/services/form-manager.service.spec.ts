@@ -3,6 +3,7 @@ import JSZip from 'jszip';
 import { APP_VERSION } from '../config/app.config';
 import { AuthService } from './auth.service';
 import { FormManagerService } from './form-manager.service';
+import { ExternalFontService } from './external-font.service';
 import { WdocManifest, generateManifest } from './manifest-builder';
 import { CompactSign, generateKeyPair, exportJWK } from 'jose';
 import { commitment, newNonce, encoder, jcs, documentDigest, verifyDocument, type Manifest } from '../signatures/core';
@@ -218,6 +219,17 @@ describe('FormManagerService', () => {
     expect(manifest.runtime.forms.default.hashAlgorithm).toBe('SHA-256');
     expect(manifest.runtime.forms.default.files['wdoc-form/approval.json']).toMatch(/^[A-Za-z0-9_-]{43}$/);
     expect(manifest.content.contentDigest).toBeUndefined(); expect(manifest.meta.creationDate).toBeUndefined();
+  });
+  it('saves editable answers without inventing a manifest when external fonts were refused', async () => {
+    spyOn(TestBed.inject(ExternalFontService), 'prepare').and.rejectWith(new Error('External font refused'));
+    const html = '<style>@font-face{font-family:Example;src:url("https://unknown.example/font.woff2")}</style><form id="approval"><input name="name"></form>';
+    const zip = new JSZip(); zip.file('index.html', html);
+    const root = document.createElement('div'); root.innerHTML = '<form id="approval"><input name="name" value="Saved offline"></form>';
+    const create = spyOn(URL, 'createObjectURL').and.returnValue('blob:draft'); spyOn(URL, 'revokeObjectURL'); spyOn(HTMLAnchorElement.prototype, 'click');
+    expect(await service.saveForms(root, await zip.generateAsync({ type:'arraybuffer' }))).toBeTrue();
+    const saved = await JSZip.loadAsync(await (create.calls.mostRecent().args[0] as Blob).arrayBuffer());
+    expect(saved.file('manifest.json')).toBeNull(); expect(await saved.file('index.html')!.async('text')).toBe(html);
+    expect(JSON.parse(await saved.file('wdoc-form/approval.json')!.async('text'))).toEqual({name:'Saved offline'});
   });
 
   it('replaces previously saved attachments when a new file is uploaded', async () => {

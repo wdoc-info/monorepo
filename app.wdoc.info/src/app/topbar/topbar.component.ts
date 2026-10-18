@@ -22,6 +22,8 @@ export class TopbarComponent implements OnChanges {
   @Input() navOpen = false;
   @Input() title = 'WDOC viewer';
   @Input() isEditing = false;
+  @Input() savingDocument = false;
+  @Input() canSaveAs = false;
   @Input() zoom = 100;
   @Input() hasDocument = false;
   @Input() attachments: LoadedFile[] = [];
@@ -29,6 +31,7 @@ export class TopbarComponent implements OnChanges {
   @Output() toggleNav = new EventEmitter<void>();
   @Output() saveForm = new EventEmitter<void>();
   @Output() saveDocument = new EventEmitter<void>();
+  @Output() saveCopy = new EventEmitter<void>();
   @Output() editDocument = new EventEmitter<void>();
   @Output() titleChange = new EventEmitter<string>();
   @Output() zoomChange = new EventEmitter<number>();

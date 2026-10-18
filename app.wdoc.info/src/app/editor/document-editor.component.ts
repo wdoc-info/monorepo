@@ -1,6 +1,7 @@
 import {
   AfterViewInit,
   Component,
+  computed,
   CUSTOM_ELEMENTS_SCHEMA,
   Inject,
   ElementRef,
@@ -12,10 +13,15 @@ import {
   SimpleChanges,
   Output,
   QueryList,
+  signal,
   ViewChild,
   ViewChildren,
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { Extension } from '@tiptap/core';
+import { ExternalFontService } from '../services/external-font.service';
+import { GOOGLE_FONTS, googleFontStylesheet } from '../config/google-fonts.config';
 import { Editor, Node as TipTapNode } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import { Level } from '@tiptap/extension-heading';
@@ -24,7 +30,7 @@ import Highlight from '@tiptap/extension-highlight';
 import TipTapImage from '@tiptap/extension-image';
 import { TextStyle } from '@tiptap/extension-text-style';
 import {
-  DEFAULT_DOCUMENT_FONT,
+  DEFAULT_DOCUMENT_FONT_SIZE,
   DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
   DEFAULT_PAGE_HEIGHT,
   DEFAULT_PAGE_PADDING,
@@ -92,7 +98,7 @@ const RawTable = TipTapNode.create({
 @Component({
   selector: 'app-document-editor',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './document-editor.component.html',
   styleUrls: ['./document-editor.component.css'],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -107,6 +113,7 @@ export class DocumentEditorComponent
   @ViewChild('imageInput') imageInput?: ElementRef<HTMLInputElement>;
 
   private editors: Editor[] = [];
+  private activeEditor?: Editor;
   private pendingExternalUpdate = false;
   pageHeight = DEFAULT_PAGE_HEIGHT;
   pageWidth = DEFAULT_PAGE_WIDTH;
@@ -121,6 +128,13 @@ export class DocumentEditorComponent
   private imageAssets = new Map<string, EditorAsset>();
   textColor = '#000000';
   highlightColor = '#fff59d';
+  fontFamily = ''; fontUrl = ''; fontWeight = '400'; fontStyle = 'normal'; fontError = ''; addingFont = false;
+  selectedFont = '';
+  readonly fontSearch = signal('');
+  readonly googleFonts = computed(() => {
+    const query = this.fontSearch().trim().toLocaleLowerCase('en');
+    return GOOGLE_FONTS.filter(font => font.family.toLocaleLowerCase('en').includes(query));
+  });
   selectedImage: HTMLImageElement | null = null;
   selectedImageSize = 100;
   readonly headingLevels: Level[] = [1, 2, 3, 4, 5, 6];
@@ -129,10 +143,64 @@ export class DocumentEditorComponent
     private blockExtractorService: BlockExtractorService,
     private documentLayoutEngineService: DocumentLayoutEngineService,
     @Inject(DOCUMENT) private documentRef: Document,
+    public fonts: ExternalFontService,
   ) {}
 
+  async addFont() {
+    if (this.addingFont) return;
+    this.addingFont = true; this.fontError = '';
+    try { await this.fonts.add(this.fontFamily, this.fontUrl, this.fontWeight, this.fontStyle); this.fontUrl = ''; this.schedulePaginationUpdate(); }
+    catch (error) { this.fontError = (error as Error).message; }
+    finally { this.addingFont = false; }
+  }
+  applyFont(alias: string) {
+    this.editor?.chain().focus().setMark('textStyle', { fontFamily: alias || null }).run();
+    this.selectedFont = alias;
+  }
+
+  async selectFont(value: string): Promise<void> {
+    if (this.addingFont) return;
+    this.fontError = '';
+    if (!value.startsWith('google:')) {
+      this.applyFont(value);
+      return;
+    }
+    const font = GOOGLE_FONTS.find(font => font.family === value.slice('google:'.length));
+    const editor = this.editor;
+    if (!font || !editor) return;
+    const selection = { from: editor.state.selection.from, to: editor.state.selection.to };
+    const originalDocument = editor.state.doc;
+    const previousFont = this.selectedFont;
+    this.selectedFont = value;
+    this.addingFont = true;
+    try {
+      if (!this.fonts.families().some(family => family.name === font.family)) {
+        await this.fonts.add(font.family, googleFontStylesheet(font));
+      }
+      if (editor.isDestroyed) return;
+      if (!editor.state.doc.eq(originalDocument)) {
+        throw new Error('The text changed while the font loaded. Select the text and choose the font again.');
+      }
+      const alias = this.fonts.families().find(family => family.name === font.family)?.alias;
+      if (!alias) throw new Error('The selected font is unavailable. Check Font settings and try again.');
+      editor.chain().focus().setTextSelection(selection).setMark('textStyle', { fontFamily: alias }).run();
+      this.selectedFont = alias;
+      this.schedulePaginationUpdate();
+    } catch (error) {
+      this.fontError = (error as Error).message;
+      this.selectedFont = previousFont;
+    } finally {
+      this.addingFont = false;
+    }
+  }
+
+  private updateSelectedFont(editor: Editor): void {
+    const family = String(editor.getAttributes('textStyle')['fontFamily'] ?? '');
+    this.selectedFont = this.fonts.families().find(font => family.split(',')[0].trim().replace(/^["']|["']$/g, '') === font.alias)?.alias ?? '';
+  }
+
   get editor(): Editor | undefined {
-    return this.editors[0];
+    return this.activeEditor && !this.activeEditor.isDestroyed ? this.activeEditor : this.editors[0];
   }
 
   ngOnInit(): void {
@@ -432,7 +500,7 @@ export class DocumentEditorComponent
       html || '<p></p>',
       {
         contentWidth: this.pageWidth - this.pagePadding * 2,
-        defaultFont: DEFAULT_DOCUMENT_FONT,
+        defaultFont: `${DEFAULT_DOCUMENT_FONT_SIZE}px ${this.fonts.defaultFamily()}`,
         defaultLineHeight: DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
         measurementRoot: this.documentRef.body,
       },
@@ -530,12 +598,17 @@ export class DocumentEditorComponent
       element,
       extensions: [
         StarterKit.configure({
+          link: { openOnClick: false, isAllowedUri: (url, context) => url.startsWith('blob:') || context.defaultValidate(url) },
           heading: {
             levels: this.headingLevels,
           },
         }),
         RawTable,
         TextStyle,
+        Extension.create({
+          name: 'documentFontFamily',
+          addGlobalAttributes: () => [{ types: ['textStyle'], attributes: { fontFamily: { default: null, parseHTML: element => element.style.fontFamily, renderHTML: attributes => attributes['fontFamily'] ? { style: `font-family:${attributes['fontFamily']}` } : {} } } }],
+        }),
         Color,
         Highlight.configure({ multicolor: true }),
         PageImage.configure({
@@ -583,6 +656,7 @@ export class DocumentEditorComponent
         if (this.pendingExternalUpdate) {
           return;
         }
+        this.updateSelectedFont(editor);
 
         this.pendingSelectionOffset = this.calculateSelectionOffset(index, editor);
         const mergedHtml = this.editors
@@ -593,6 +667,8 @@ export class DocumentEditorComponent
         this.updatePagesFromHtml(mergedHtml);
       },
       onFocus: ({ editor }) => {
+        this.activeEditor = editor;
+        this.updateSelectedFont(editor);
         if (this.placeholderCleared || index !== 0) {
           return;
         }
@@ -603,6 +679,9 @@ export class DocumentEditorComponent
           editor.commands.setContent('<p></p>');
           this.schedulePaginationUpdate();
         }
+      },
+      onSelectionUpdate: ({ editor }) => {
+        if (editor === this.editor) this.updateSelectedFont(editor);
       },
     });
 

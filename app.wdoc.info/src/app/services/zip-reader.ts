@@ -31,6 +31,7 @@ export interface ZipFolderLike {
 export interface ZipContainer {
   file(path: string): ZipEntryLike | null;
   folder(path: string): ZipFolderLike | null;
+  entries?(): ZipEntryLike[];
 }
 
 export class StreamedZip implements ZipContainer {

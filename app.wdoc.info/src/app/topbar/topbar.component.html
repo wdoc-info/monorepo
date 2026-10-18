@@ -120,13 +120,17 @@
       </button>
     }
     @if (isEditing) {
+      @if (canSaveAs) {
+        <button class="topbar-secondary" type="button" (click)="saveCopy.emit()" [disabled]="savingDocument">Save as…</button>
+      }
       <button
         class="topbar-save"
         type="button"
         (click)="onSaveDocument()"
         [hidden]="!showDocumentSave"
+        [disabled]="savingDocument"
       >
-        Save document
+        {{ savingDocument ? 'Saving…' : 'Save document' }}
       </button>
     }
   </div>

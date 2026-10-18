@@ -13,10 +13,21 @@
     </button>
   </header>
   <div class="nav-content">
-    <button type="button" class="nav-btn primary" (click)="onCreateNewDocument()">
+    <div class="nav-tabs" role="tablist" aria-label="Document sources">
+      <button type="button" role="tab" id="nav-tab-documents" aria-controls="nav-panel-documents"
+        [attr.aria-selected]="navTab === 'documents'" [attr.tabindex]="navTab === 'documents' ? 0 : -1"
+        (click)="navTab = 'documents'" (keydown.arrowright)="selectNavTab('folder', $event)"
+        (keydown.arrowleft)="selectNavTab('folder', $event)" (keydown.end)="selectNavTab('folder', $event)">Documents</button>
+      <button type="button" role="tab" id="nav-tab-folder" aria-controls="nav-panel-folder"
+        [attr.aria-selected]="navTab === 'folder'" [attr.tabindex]="navTab === 'folder' ? 0 : -1"
+        (click)="navTab = 'folder'" (keydown.arrowright)="selectNavTab('documents', $event)"
+        (keydown.arrowleft)="selectNavTab('documents', $event)" (keydown.home)="selectNavTab('documents', $event)">Local folder</button>
+    </div>
+    <div id="nav-panel-documents" class="nav-panel" role="tabpanel" aria-labelledby="nav-tab-documents" [hidden]="navTab !== 'documents'">
+    <button type="button" class="nav-btn primary" (click)="onCreateNewDocument()" [disabled]="busy">
       New document
     </button>
-    <button type="button" class="nav-btn" (click)="triggerFileDialog()">
+    <button type="button" class="nav-btn" (click)="triggerFileDialog()" [disabled]="busy">
       Open .wdoc or .zip file
     </button>
     <input
@@ -28,8 +39,43 @@
       aria-hidden="true"
       tabindex="-1"
     />
+    </div>
+    <div id="nav-panel-folder" class="nav-panel" role="tabpanel" aria-labelledby="nav-tab-folder" [hidden]="navTab !== 'folder'">
+      @if (localFiles.supported) {
+        <button type="button" class="nav-btn primary" (click)="localFiles.chooseFolder()" [disabled]="busy || localFiles.busy()">
+          {{ localFiles.directory() ? 'Change folder' : 'Open folder' }}
+        </button>
+        @if (localFiles.directory(); as folder) {
+          <p class="folder-name" [title]="folder.name">{{ folder.name }}</p>
+          <div class="folder-actions">
+            <button type="button" class="nav-btn" (click)="localFiles.refresh()" [disabled]="busy || localFiles.busy()">Refresh</button>
+            <button type="button" class="nav-btn" (click)="localFiles.disconnect()" [disabled]="busy || localFiles.busy()">Disconnect</button>
+          </div>
+          @if (localFiles.needsPermission()) {
+            <p class="folder-hint">Reconnect this folder to access its documents.</p>
+            <button type="button" class="nav-btn" (click)="localFiles.reconnect()" [disabled]="busy">Reconnect folder</button>
+          } @else {
+            <ul class="folder-files" aria-label="wdoc files in this folder" [attr.aria-busy]="busy || localFiles.busy()">
+              @for (file of localFiles.files(); track file.name) {
+                <li><button type="button" class="folder-file" [title]="file.name"
+                  [attr.aria-current]="localFiles.activeFolderFile() === file.name ? 'page' : null"
+                  [disabled]="busy" (click)="localFileSelected.emit(file)">{{ file.name }}</button></li>
+              } @empty {
+                <li class="folder-hint">No .wdoc files in this folder.</li>
+              }
+            </ul>
+          }
+        } @else {
+          <p class="folder-hint">Choose a folder to browse its .wdoc files and save changes directly to them.</p>
+        }
+        @if (localFiles.error()) { <p class="folder-error" role="alert">{{ localFiles.error() }}</p> }
+      } @else {
+        <p class="folder-hint">Direct folder access is unavailable in this browser. Use Documents to open a file and download your changes.</p>
+      }
+    </div>
   </div>
   <footer class="nav-footer">
+    <button type="button" class="nav-btn" (click)="openFontSettings()">Font settings</button>
     <button type="button" class="nav-btn auth-btn" (click)="openAuthModal()">
       <span class="auth-label">{{ currentUserEmail || 'Login / Sign up' }}</span>
     </button>

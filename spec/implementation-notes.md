@@ -15,6 +15,7 @@ Paths below are relative to the repository root.
 | Immutable snapshots, revisions, local preparation and receipt insertion | `app.wdoc.info/src/app/signatures/local-document.ts` |
 | Editor manifest, original inventories, and draft inventories | `app.wdoc.info/src/app/services/manifest-builder.ts` |
 | Editor HTML and asset export | `app.wdoc.info/src/app/services/document-creator.service.ts` |
+| Browser-local directory handles and atomic linked-file saves | `app.wdoc.info/src/app/services/local-files.service.ts`; `edited-archive.service.ts` |
 | Optional-manifest display validation and logical-root entry access | `app.wdoc.info/src/app/services/wdoc-loader.service.ts` |
 | Access to validated cached ZIP entries | `app.wdoc.info/src/app/services/zip-reader.ts` |
 | Sanitization, local CSS resources/imports, templates, dates, barcodes | `app.wdoc.info/src/app/services/html-processing.service.ts` |
@@ -36,7 +37,7 @@ The application uses explicit validators rather than compiling JSON Schema in th
 | Boundary | Enforced behavior |
 | --- | --- |
 | Manifest | Required objects/arrays, closed top-level/signature/wrapper/submission/revision objects, known optional field types, safe IDs, valid dates, complete original inventory shape, draft inventory structure |
-| Optional manifest | An absent manifest is a valid unsigned document. A present manifest requires the complete `1.0` structure; no replacement or migration is inferred. |
+| Optional manifest | An absent manifest is a valid unsigned document. A present manifest requires the complete `0.1` structure; no replacement or migration is inferred. |
 | Logical root | Root `index.html` is authoritative; otherwise exactly one enclosing folder contains its immediate `index.html`. All readers strip this single transport prefix before interpreting any document path. Multiple root folders, sibling files, and deeper/case-insensitive entry-point searches are rejected. |
 | JSON/text | Fatal UTF-8 without a text BOM; duplicate decoded member names rejected in manifests, protected headers, payloads, registries, and requests; finite JSON values and at most 64 nested objects/arrays |
 | Dates | Calendar-valid RFC 3339 date-times with mandatory zone, bounded clock/offset fields, and no leap-second spelling; writers retain UTC millisecond ISO strings |
@@ -48,7 +49,7 @@ The application uses explicit validators rather than compiling JSON Schema in th
 | ZIP | Original central/local names, UTF-8 extras/CRC, supported methods/flags, descriptor consistency, no collisions/overlap/unindexed content, and count/size bounds before decompression |
 | Expanded data | Bounded chunk consumption, actual total/file sizes including the manifest, and actual CRC before downstream access; all readers use the same decoder and retain only checked expanded data |
 | Draft forms | Global form-position fallback, exact-ID-first restoration, exact control-name matching, duplicate-free JSON, safe attachment paths, and output-name collision rejection |
-| Rendering resources | Local images/fonts/imports resolve at their containing archive path; CSS layer/supports/media conditions are preserved; cycles and expansion limits are explicit; generated URLs are scoped to one processing operation |
+| Rendering resources | Local images/fonts/imports resolve at their containing archive path; external fonts use protected digests, independent origin permissions, and document-specific family aliases; CSS layer/supports/media conditions are preserved; cycles and expansion limits are explicit; generated URLs are scoped to one processing operation |
 | Receipt application | Exact receipt members, UUID shape for platform receipts, safe unique local IDs, authenticated signer and prepared commitment checks before atomic insertion |
 
 ## Intentional scope boundaries
@@ -59,13 +60,22 @@ These are format guarantees and limitations, not parser exceptions:
 - `runtime` is outside the original digest. In particular, a form signature does not authenticate descriptor `createdAt` or `replaces`; a seal covers their actual manifest bytes. No correction graph or chronology is inferred from them.
 - A form signature covers exactly its descriptor's answer/attachment set. The lower-level signing interface accepts JSON answers beyond the standard DOM collection schema. File verification does not invent an application-specific form validation or attachment-safety guarantee.
 - Historical scopes are structurally unique and share the document ID, but there is no signed parent pointer, global revision counter, or certified chronological order.
-- The static resource recognizer is deliberately restricted as specified. DOMPurify and Shadow DOM remain necessary, and identical signed bytes do not guarantee identical browser font metrics or pixels. External images retain their explicit consent flow for unsigned display; CSS resource resolution does not introduce remote fetches.
+- The static resource recognizer is deliberately restricted as specified. DOMPurify and Shadow DOM remain necessary, and identical signed bytes do not guarantee identical browser font metrics or pixels. External images retain their explicit consent flow for unsigned display; font-only external CSS and font binaries use the independent frontend permission policy; protected fingerprints are checked before use.
 - Earlier seals become obsolete after later additions. Removing the newest pair or rolling back an entire archive requires an independently retained reference to detect reliably. An absent seal yields no completeness claim.
 - Personal provider enrollment, trusted timestamps, stronger transaction authentication, and cloud storage are outside the implemented profile.
 
+External font loading, origin preferences, cache validation, editor controls, and offline export are implemented in `app.wdoc.info/src/app/services/external-font.service.ts`, `font-trust.service.ts`, the font dialogs, and `config/font-sources.config.ts`. The standalone validator checks declarations and optional embedded copy hashes without contacting font hosts.
+
+Local folder access changes the web app's save destination, not the archive format.
+Linked-file edits preserve resources and draft data. Documents with immutable
+history use the existing revision operation without submitting an attestation;
+their edited current scope remains unsigned and previous signatures remain in
+their historical scopes. Browser handles and permissions stay outside the archive.
+Operational behavior is documented in [the local-file guide](../docs/local-files.md).
+
 ## Current profile
 
-The manifest version is `1.0`, with ES256/SHA-256 and the three `v1` commitment domains. The format has no unversioned hash-manifest profile, inventory-bearing signature payload, locale-dependent auxiliary digest, or migration path. The editor writes `createdAt`/`contentUpdatedAt` and canonical base64url file hashes; draft inventory sections use `{hashAlgorithm:"SHA-256",files}`.
+The manifest version is `0.1`, with ES256/SHA-256 and the three `v1` commitment domains. The format has no unversioned hash-manifest profile, inventory-bearing signature payload, locale-dependent auxiliary digest, or migration path. The editor writes `createdAt`/`contentUpdatedAt` and canonical base64url file hashes; draft inventory sections use `{hashAlgorithm:"SHA-256",files}`.
 
 Manifestless viewing preserves the supplied archive. A local signing client can create an unauthenticated candidate manifest for review, then persist it during explicit signing/export. All document bytes and local nonces stay on the client. Exports use logical-root paths; rewrapping under one enclosing folder preserves signatures and seals, including their actual manifest bytes.
 
@@ -111,3 +121,13 @@ No format version, signature algorithm, commitment value, or domain changes.
 - CI: root `.github/workflows/spec-tests.yml`, with path filters for the spec and relevant implementation/dependency changes.
 
 These checks establish the covered behaviors; they are not an independent security audit or proof of exhaustive browser behavior coverage.
+
+## Embedded version history
+
+The editor uses `history/git-engine.ts` in a lazy worker with a private memory
+filesystem. It never checks out host files or uses remotes. `history/git-pack.ts`
+bounds pack inflation and delta reconstruction. `HistoryService` coordinates
+IndexedDB recovery and browser locks; the app retains the linked-file modification
+checks and only clears dirty state after a completed write. The visual merge UI
+uses inert sandboxed previews and explicit conflict choices. The standalone
+validator and offline CLI inspect structural Git headers separately from proofs.

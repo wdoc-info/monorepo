@@ -38,7 +38,7 @@ describe('WdocLoaderService', () => {
 
   it('accepts a ZIP containing only index.html as an unsigned document', async () => {
     const zip = new JSZip(); zip.file('index.html', '<p>Unsigned</p>');
-    htmlProcessor.processHtml.and.resolveTo({ html: '<p>Unsigned</p>', documentTitle: 'Document' });
+    htmlProcessor.processHtml.and.resolveTo({ html: '<p>Unsigned</p>', documentTitle: 'Document', assets: [] });
     expect(await service.loadWdocFromArrayBuffer(await zip.generateAsync({type:'arraybuffer'}))).not.toBeNull();
     expect(dialogService.openAlert).not.toHaveBeenCalled();
   });
@@ -62,6 +62,7 @@ describe('WdocLoaderService', () => {
     htmlProcessor.processHtml.and.resolveTo({
       html: '<body>processed</body>',
       documentTitle: 'Doc',
+      assets: [],
     });
 
     const result = await service.loadWdocFromArrayBuffer(buffer, 'WDOC viewer');
@@ -82,7 +83,7 @@ describe('WdocLoaderService', () => {
     zip.folder('report')!.file('index.html', '<html><body>Nested</body></html>');
     zip.folder('report/wdoc-attachment')!.file('photo.jpg', 'image-bytes');
     const buffer = await zip.generateAsync({ type: 'arraybuffer' });
-    htmlProcessor.processHtml.and.resolveTo({ html: '<body>processed</body>', documentTitle: 'Doc' });
+    htmlProcessor.processHtml.and.resolveTo({ html: '<body>processed</body>', documentTitle: 'Doc', assets: [] });
 
     const result = await service.loadWdocFromArrayBuffer(buffer);
 
@@ -98,6 +99,7 @@ describe('WdocLoaderService', () => {
     htmlProcessor.processHtml.and.resolveTo({
       html: '<body>processed</body>',
       documentTitle: 'Doc',
+      assets: [],
     });
 
     const result = await service.loadWdocFromArrayBuffer(buffer, 'WDOC viewer');
@@ -111,7 +113,7 @@ describe('WdocLoaderService', () => {
     const zip = new JSZip();
     zip.file('readme.txt', 'info');
     const buffer = await zip.generateAsync({ type: 'arraybuffer' });
-    htmlProcessor.processHtml.and.resolveTo({ html: '', documentTitle: '' });
+    htmlProcessor.processHtml.and.resolveTo({ html: '', documentTitle: '', assets: [] });
 
     const result = await service.loadWdocFromArrayBuffer(buffer);
 
@@ -135,6 +137,7 @@ describe('WdocLoaderService', () => {
     htmlProcessor.processHtml.and.resolveTo({
       html: '<body>processed</body>',
       documentTitle: 'Doc',
+      assets: [],
     });
 
     const result = await service.loadWdocFromArrayBuffer(buffer);
@@ -159,6 +162,7 @@ describe('WdocLoaderService', () => {
     htmlProcessor.processHtml.and.resolveTo({
       html: '<body>processed</body>',
       documentTitle: 'Doc',
+      assets: [],
     });
 
     const result = await service.loadWdocFromArrayBuffer(buffer);
@@ -202,7 +206,7 @@ describe('WdocLoaderService', () => {
 
   it('keeps root index.html authoritative with multiple resource folders', async () => {
     const zip = new JSZip(); zip.file('index.html','<p>Root</p>');zip.file('images/logo.png','image');zip.file('styles/main.css','body{}');zip.file('resources/index.html','<p>Resource</p>');
-    htmlProcessor.processHtml.and.resolveTo({html:'<p>Root</p>',documentTitle:'Root'});
+    htmlProcessor.processHtml.and.resolveTo({html:'<p>Root</p>',documentTitle:'Root',assets:[]});
     expect(await service.loadWdocFromArrayBuffer(await zip.generateAsync({type:'arraybuffer'}))).not.toBeNull();
     expect(htmlProcessor.processHtml).toHaveBeenCalledWith(jasmine.anything(), '<p>Root</p>', {defaultTitle:'WDOC viewer',basePath:''});
   });

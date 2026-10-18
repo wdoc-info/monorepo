@@ -19,6 +19,7 @@ export class SignaturePanelComponent implements OnChanges {
   selectedForm = 0; attachmentNames: string[] = [];
   previewFiles: Array<{ name: string; size: number; hash: string; data: string }> = [];
   pendingCosign: { formId: string; submissionId: string } | null = null;
+  includeFonts = false;
   private generation = 0;
   constructor(private service: WdocSignatureService, private cdr: ChangeDetectorRef) {}
   get forms(): HTMLFormElement[] { return Array.from(this.formRoot?.querySelectorAll('form') ?? []); }
@@ -70,7 +71,7 @@ export class SignaturePanelComponent implements OnChanges {
       this.message = 'Signed locally. Download your archive to keep it; the document was not uploaded or saved on a server.';
     });
   }
-  async download() { if (this.state) this.service.download(await this.service.archive(this.state)); }
+  async download() { await this.run(async () => { if (this.state) this.service.download(await this.service.archive(this.state, this.includeFonts)); }); }
   showSnapshot(formId: string, submissionId: string) {
     const s = this.state?.manifest.runtime.submissions[formId]?.find(s => s.submissionId === submissionId);
     if (!s || !this.state) return;

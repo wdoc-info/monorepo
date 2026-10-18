@@ -155,5 +155,36 @@ import Layout from "../layouts/Layout.astro";
 			</div>
 		</div>
 	</section>
+  <section id="version-history" class="w-full max-w-7xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-24 items-center">
+      <div class="flex flex-col gap-6">
+        <div class="flex items-center gap-4">
+          <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-primary">history</span>
+          </div>
+          <h3 class="text-gray-900 text-3xl font-bold leading-tight sm:text-4xl">Your document. Every version.</h3>
+        </div>
+        <p class="text-gray-600 text-base leading-relaxed">
+          Git history travels inside your .wdoc file. Keep a timeline of saved versions,
+          recover working drafts, and restore earlier content without losing what came after it.
+        </p>
+        <p class="text-gray-600 text-base leading-relaxed">
+          While you edit, changes are autosaved every 30 seconds when the browser permits it.
+          Save merges your draft into the published version and keeps the intermediate steps.
+          A linked local file is updated directly.
+        </p>
+        <p class="text-gray-600 text-base leading-relaxed">
+          Bring another copy into a visual comparison, combine independent changes, and choose
+          how conflicts are resolved. Original signatures stay with their exact versions;
+          the merged draft is ready for a new signature. Your documents stay local.
+        </p>
+        <a class="text-primary font-semibold hover:underline" href="https://app.wdoc.info">Try version history in the editor →</a>
+      </div>
+      <figure class="rounded-xl bg-gray-100 p-3 border border-gray-200">
+        <img src="/assets/version-history.png" alt="The wdoc editor comparing two project proposals and previewing a merged document with the updated budget and delivery date" class="w-full h-auto rounded-lg" loading="lazy" width="1094" height="913" />
+        <figcaption class="mt-3 text-sm text-gray-600">Visual merging in the wdoc editor. No remote Git service required.</figcaption>
+      </figure>
+    </div>
+  </section>
 </Layout>
           

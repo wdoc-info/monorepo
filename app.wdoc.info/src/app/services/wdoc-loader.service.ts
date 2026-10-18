@@ -6,6 +6,7 @@ import { lastValueFrom } from 'rxjs';
 import { HtmlProcessingService } from './html-processing.service';
 import { DialogService } from './dialog.service';
 import { StreamedZip } from './zip-reader';
+import type { DocumentAsset } from './document-creator.service';
 
 export interface WdocLoadResult {
   html: string;
@@ -13,6 +14,7 @@ export interface WdocLoadResult {
   originalArrayBuffer: ArrayBuffer;
   attachments: LoadedFile[];
   formAnswers: LoadedFile[];
+  assets?: DocumentAsset[];
 }
 
 export interface LoadedFile {
@@ -71,6 +73,7 @@ export class WdocLoaderService {
         originalArrayBuffer: arrayBuffer,
         attachments,
         formAnswers,
+        assets: processed.assets,
       };
     } catch (error) {
       console.error('Error processing zip file:', error);
@@ -91,7 +94,7 @@ export class WdocLoaderService {
 
     try {
       const manifest = parseJson(decodeUtf8(await manifestFile.async('uint8array') as Uint8Array));
-      if (!isRecord(manifest) || manifest['manifestVersion'] !== '1.0') {
+      if (!isRecord(manifest) || manifest['manifestVersion'] !== '0.1') {
         await this.dialogService.openAlert('The document manifest uses an unsupported format and will not be opened.', 'Unsupported manifest');
         return false;
       }

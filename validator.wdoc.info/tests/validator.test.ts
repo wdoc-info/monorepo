@@ -72,7 +72,7 @@ describe('Validity, trust, and optional features remain separate', () => {
         const bad = await validateDocument(new ArrayBuffer(0));
         expect(bad.format).toBe('invalid');
         expect(bad.signatures.state).toBe('not-checked');
-        for (const text of ['{}', '{"manifestVersion":"2.0"}', '{"manifestVersion":"1.0","manifestVersion":"1.0"}']) {
+        for (const text of ['{}', '{"manifestVersion":"2.0"}', '{"manifestVersion":"0.1","manifestVersion":"0.1"}']) {
             const report = await validateDocument(await pack({ 'index.html': encoder.encode('<p>Doc</p>'), 'manifest.json': encoder.encode(text) }));
             expect(report.format).toBe('invalid');
             expect(report.needsKeys).toBeFalse();
@@ -181,7 +181,7 @@ describe('Validity, trust, and optional features remain separate', () => {
     });
     test('noncanonical but valid signed JSON is a producer recommendation, not a reader rejection', async () => {
         const files: Files = { 'index.html': encoder.encode('<p>Document</p>') };
-        const manifest: Manifest = { manifestVersion: '1.0', meta: { docId: 'doc', appVersion: 'test', createdAt: '2026-10-17T00:00:00.000Z', contentUpdatedAt: '2026-10-17T00:00:00.000Z' }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { submissions: {}, revisions: [] }, signatures: { document: [], forms: [] } };
+        const manifest: Manifest = { manifestVersion: '0.1', meta: { docId: 'doc', appVersion: 'test', createdAt: '2026-10-17T00:00:00.000Z', contentUpdatedAt: '2026-10-17T00:00:00.000Z' }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { submissions: {}, revisions: [] }, signatures: { document: [], forms: [] } };
         const pair = await generateKeyPair('ES256', { extractable: true }), nonce = newNonce(), kid = 'https://sig.wdoc.info/info/noncanonical';
         const payload = { type: 'wdoc-document-signature', proofMode: 'digest-only', documentCommitment: await commitment('document', await documentDigest(manifest), nonce), signer: { userId: 'alice', displayName: 'Alice' }, signedAt: '2026-10-17T00:00:00.000Z', evidence: { scope: 'commitment-only', method: 'authenticated-session', consent: 'wdoc-sign-v1' } };
         manifest.signatures.document.push({ signatureId: 'sig', nonce, jws: await new CompactSign(encoder.encode(JSON.stringify(payload, null, 2))).setProtectedHeader({ alg: 'ES256', typ: 'wdoc-document+jws', kid }).sign(pair.privateKey) });

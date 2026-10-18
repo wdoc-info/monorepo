@@ -40,7 +40,7 @@
   ],
   "scope": {
     "value": {
-      "manifestVersion": "1.0",
+      "manifestVersion": "0.1",
       "meta": {
         "docId": "11111111-1111-4111-8111-111111111111",
         "appVersion": "vector-1",
@@ -56,23 +56,23 @@
         }
       }
     },
-    "canonical": "{\"content\":{\"files\":{\"index.html\":\"Wvjjwx_3or9KXQ0rvti7o9lXVXiei90RSaaIXVU2cPY\",\"wdoc-assets/style.css\":\"cyHWzfNeIAVP9llnKYufjLqVYwUgWcs2kRAUERrshq4\"},\"hashAlgorithm\":\"SHA-256\"},\"manifestVersion\":\"1.0\",\"meta\":{\"appVersion\":\"vector-1\",\"contentUpdatedAt\":\"2026-01-02T03:04:05.000Z\",\"createdAt\":\"2026-01-02T03:04:05.000Z\",\"docId\":\"11111111-1111-4111-8111-111111111111\",\"docTitle\":\"Approval\"}}",
-    "documentDigest": "yQHi5nyGFVmX2bUTArXorWSm63gZKl0Yi2pv_CvbCPU"
+    "canonical": "{\"content\":{\"files\":{\"index.html\":\"Wvjjwx_3or9KXQ0rvti7o9lXVXiei90RSaaIXVU2cPY\",\"wdoc-assets/style.css\":\"cyHWzfNeIAVP9llnKYufjLqVYwUgWcs2kRAUERrshq4\"},\"hashAlgorithm\":\"SHA-256\"},\"manifestVersion\":\"0.1\",\"meta\":{\"appVersion\":\"vector-1\",\"contentUpdatedAt\":\"2026-01-02T03:04:05.000Z\",\"createdAt\":\"2026-01-02T03:04:05.000Z\",\"docId\":\"11111111-1111-4111-8111-111111111111\",\"docTitle\":\"Approval\"}}",
+    "documentDigest": "dd15tS2aA-gLgKbDwvvlymewCS_LECdxSlHMfsyblBs"
   },
   "commitments": [
     {
       "kind": "document",
       "nonce": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8",
-      "value": "yQHi5nyGFVmX2bUTArXorWSm63gZKl0Yi2pv_CvbCPU",
-      "commitment": "K6vJMJnGdBVEiM2x73s4oN7r5ADooFm5JNnPMPXk0rQ",
-      "canonicalPreimage": "{\"domain\":\"wdoc-document-commitment-v1\",\"nonce\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\",\"value\":\"yQHi5nyGFVmX2bUTArXorWSm63gZKl0Yi2pv_CvbCPU\"}"
+      "value": "dd15tS2aA-gLgKbDwvvlymewCS_LECdxSlHMfsyblBs",
+      "commitment": "AYWuug3Mm1on7dHjS3-ApO4WCe_ZKijsxu1k3xZWpN0",
+      "canonicalPreimage": "{\"domain\":\"wdoc-document-commitment-v1\",\"nonce\":\"AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8\",\"value\":\"dd15tS2aA-gLgKbDwvvlymewCS_LECdxSlHMfsyblBs\"}"
     },
     {
       "kind": "form",
       "nonce": "ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8",
       "value": {
         "docId": "11111111-1111-4111-8111-111111111111",
-        "documentDigest": "yQHi5nyGFVmX2bUTArXorWSm63gZKl0Yi2pv_CvbCPU",
+        "documentDigest": "dd15tS2aA-gLgKbDwvvlymewCS_LECdxSlHMfsyblBs",
         "formId": "approval",
         "submissionId": "22222222-2222-4222-8222-222222222222",
         "files": {
@@ -80,8 +80,8 @@
           "submissions/22222222-2222-4222-8222-222222222222/attachments/1-proof.txt": "QFMdFqaMS9_x3wIaWLBUv9w9C-LxztN6nk-wjyvs0sQ"
         }
       },
-      "commitment": "ifRfwQW-gDn4qKaR_xqT8yzdwHHCBlJEAsXP97y8yKY",
-      "canonicalPreimage": "{\"domain\":\"wdoc-form-commitment-v1\",\"nonce\":\"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\",\"value\":{\"docId\":\"11111111-1111-4111-8111-111111111111\",\"documentDigest\":\"yQHi5nyGFVmX2bUTArXorWSm63gZKl0Yi2pv_CvbCPU\",\"files\":{\"submissions/22222222-2222-4222-8222-222222222222/answers.json\":\"lurRGrn2BDRee-EWcQ9FgCR46eUIM6CjCFiVRS-JmXQ\",\"submissions/22222222-2222-4222-8222-222222222222/attachments/1-proof.txt\":\"QFMdFqaMS9_x3wIaWLBUv9w9C-LxztN6nk-wjyvs0sQ\"},\"formId\":\"approval\",\"submissionId\":\"22222222-2222-4222-8222-222222222222\"}}"
+      "commitment": "oGe7B5PO7iXsC1dkuOi0T0ddEoPA0ZcMPN0S_gc-6So",
+      "canonicalPreimage": "{\"domain\":\"wdoc-form-commitment-v1\",\"nonce\":\"ICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj8\",\"value\":{\"docId\":\"11111111-1111-4111-8111-111111111111\",\"documentDigest\":\"dd15tS2aA-gLgKbDwvvlymewCS_LECdxSlHMfsyblBs\",\"files\":{\"submissions/22222222-2222-4222-8222-222222222222/answers.json\":\"lurRGrn2BDRee-EWcQ9FgCR46eUIM6CjCFiVRS-JmXQ\",\"submissions/22222222-2222-4222-8222-222222222222/attachments/1-proof.txt\":\"QFMdFqaMS9_x3wIaWLBUv9w9C-LxztN6nk-wjyvs0sQ\"},\"formId\":\"approval\",\"submissionId\":\"22222222-2222-4222-8222-222222222222\"}}"
     },
     {
       "kind": "seal",
@@ -90,64 +90,64 @@
         "docId": "11111111-1111-4111-8111-111111111111",
         "files": {
           "index.html": "Wvjjwx_3or9KXQ0rvti7o9lXVXiei90RSaaIXVU2cPY",
-          "manifest.json": "rsLaQr46f0DnNgEgbN9U6LvE5iksjVE2Phu_CHfG9oA",
+          "manifest.json": "Y5yFNXf7df_Bj11fIrKGZ0f5G1XJCqlUS7In-7DxJjA",
           "submissions/22222222-2222-4222-8222-222222222222/answers.json": "lurRGrn2BDRee-EWcQ9FgCR46eUIM6CjCFiVRS-JmXQ",
           "submissions/22222222-2222-4222-8222-222222222222/attachments/1-proof.txt": "QFMdFqaMS9_x3wIaWLBUv9w9C-LxztN6nk-wjyvs0sQ",
           "wdoc-assets/style.css": "cyHWzfNeIAVP9llnKYufjLqVYwUgWcs2kRAUERrshq4"
         }
       },
-      "commitment": "MK8rmeTQBvluU2aIeW3NwRWn6xYv7eKuhEooEQgwtvw",
-      "canonicalPreimage": "{\"domain\":\"wdoc-seal-commitment-v1\",\"nonce\":\"QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8\",\"value\":{\"docId\":\"11111111-1111-4111-8111-111111111111\",\"files\":{\"index.html\":\"Wvjjwx_3or9KXQ0rvti7o9lXVXiei90RSaaIXVU2cPY\",\"manifest.json\":\"rsLaQr46f0DnNgEgbN9U6LvE5iksjVE2Phu_CHfG9oA\",\"submissions/22222222-2222-4222-8222-222222222222/answers.json\":\"lurRGrn2BDRee-EWcQ9FgCR46eUIM6CjCFiVRS-JmXQ\",\"submissions/22222222-2222-4222-8222-222222222222/attachments/1-proof.txt\":\"QFMdFqaMS9_x3wIaWLBUv9w9C-LxztN6nk-wjyvs0sQ\",\"wdoc-assets/style.css\":\"cyHWzfNeIAVP9llnKYufjLqVYwUgWcs2kRAUERrshq4\"}}}"
+      "commitment": "YFqwciEW51YPq7DGv_ytDJDlX_U5MnDWoBK5OXqUQ34",
+      "canonicalPreimage": "{\"domain\":\"wdoc-seal-commitment-v1\",\"nonce\":\"QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl8\",\"value\":{\"docId\":\"11111111-1111-4111-8111-111111111111\",\"files\":{\"index.html\":\"Wvjjwx_3or9KXQ0rvti7o9lXVXiei90RSaaIXVU2cPY\",\"manifest.json\":\"Y5yFNXf7df_Bj11fIrKGZ0f5G1XJCqlUS7In-7DxJjA\",\"submissions/22222222-2222-4222-8222-222222222222/answers.json\":\"lurRGrn2BDRee-EWcQ9FgCR46eUIM6CjCFiVRS-JmXQ\",\"submissions/22222222-2222-4222-8222-222222222222/attachments/1-proof.txt\":\"QFMdFqaMS9_x3wIaWLBUv9w9C-LxztN6nk-wjyvs0sQ\",\"wdoc-assets/style.css\":\"cyHWzfNeIAVP9llnKYufjLqVYwUgWcs2kRAUERrshq4\"}}}"
     }
   ],
   "payloads": {
     "document": {
-      "type": "wdoc-document-signature",
-      "proofMode": "digest-only",
-      "documentCommitment": "K6vJMJnGdBVEiM2x73s4oN7r5ADooFm5JNnPMPXk0rQ",
-      "signer": {
-        "userId": "alice",
-        "displayName": "alice@example.test"
-      },
-      "signedAt": "2026-01-02T03:04:05.000Z",
+      "documentCommitment": "AYWuug3Mm1on7dHjS3-ApO4WCe_ZKijsxu1k3xZWpN0",
       "evidence": {
-        "method": "authenticated-session",
         "consent": "wdoc-sign-v1",
+        "method": "authenticated-session",
         "scope": "commitment-only"
-      }
+      },
+      "proofMode": "digest-only",
+      "signedAt": "2026-01-02T03:04:05.000Z",
+      "signer": {
+        "displayName": "alice@example.test",
+        "userId": "alice"
+      },
+      "type": "wdoc-document-signature"
     },
     "form": {
-      "type": "wdoc-form-signature",
-      "proofMode": "digest-only",
-      "documentCommitment": "K6vJMJnGdBVEiM2x73s4oN7r5ADooFm5JNnPMPXk0rQ",
-      "submissionCommitment": "ifRfwQW-gDn4qKaR_xqT8yzdwHHCBlJEAsXP97y8yKY",
-      "mode": "wdoc-attestation",
-      "signer": {
-        "userId": "alice",
-        "displayName": "alice@example.test"
-      },
-      "signedAt": "2026-01-02T03:04:05.000Z",
+      "documentCommitment": "AYWuug3Mm1on7dHjS3-ApO4WCe_ZKijsxu1k3xZWpN0",
       "evidence": {
-        "method": "authenticated-session",
         "consent": "wdoc-sign-v1",
+        "method": "authenticated-session",
         "scope": "commitment-only"
-      }
+      },
+      "mode": "wdoc-attestation",
+      "proofMode": "digest-only",
+      "signedAt": "2026-01-02T03:04:05.000Z",
+      "signer": {
+        "displayName": "alice@example.test",
+        "userId": "alice"
+      },
+      "submissionCommitment": "oGe7B5PO7iXsC1dkuOi0T0ddEoPA0ZcMPN0S_gc-6So",
+      "type": "wdoc-form-signature"
     },
     "seal": {
-      "type": "wdoc-seal-signature",
-      "proofMode": "digest-only",
-      "documentCommitment": "K6vJMJnGdBVEiM2x73s4oN7r5ADooFm5JNnPMPXk0rQ",
-      "archiveCommitment": "MK8rmeTQBvluU2aIeW3NwRWn6xYv7eKuhEooEQgwtvw",
-      "signer": {
-        "userId": "alice",
-        "displayName": "alice@example.test"
-      },
-      "signedAt": "2026-01-02T03:04:05.000Z",
+      "archiveCommitment": "YFqwciEW51YPq7DGv_ytDJDlX_U5MnDWoBK5OXqUQ34",
+      "documentCommitment": "AYWuug3Mm1on7dHjS3-ApO4WCe_ZKijsxu1k3xZWpN0",
       "evidence": {
-        "method": "authenticated-session",
         "consent": "wdoc-sign-v1",
+        "method": "authenticated-session",
         "scope": "commitment-only"
-      }
+      },
+      "proofMode": "digest-only",
+      "signedAt": "2026-01-02T03:04:05.000Z",
+      "signer": {
+        "displayName": "alice@example.test",
+        "userId": "alice"
+      },
+      "type": "wdoc-seal-signature"
     }
   }
 }

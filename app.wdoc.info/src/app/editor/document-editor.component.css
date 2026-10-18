@@ -52,6 +52,35 @@
   border-color: #312e81;
 }
 
+.font-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  max-width: 100%;
+}
+
+.font-picker input,
+.font-picker select {
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  padding: 8px;
+  font: inherit;
+  min-width: 0;
+  width: 190px;
+  max-width: 100%;
+}
+
+.editor-toolbar .font-picker :focus-visible {
+  outline: 2px solid #312e81;
+  outline-offset: 2px;
+}
+
+.font-status { color: #475569; }
+.font-error { margin: 0; color: #b91c1c; }
+
 .toolbar-group {
   display: flex;
   gap: 4px;
@@ -213,3 +242,7 @@
 .editor-surface:focus-visible {
   outline: none !important;
 }
+.font-controls { margin: 12px 0; padding: 12px; background: white; }
+.font-controls label { display: inline-flex; flex-direction: column; gap: 4px; margin: 8px; }
+.font-controls input { min-width: 180px; max-width: 100%; }
+.font-controls input, .font-controls select, .font-controls button { padding: 8px; }
