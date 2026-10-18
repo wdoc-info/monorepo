@@ -9,11 +9,15 @@ import {
   OnDestroy,
   NgZone,
   ChangeDetectorRef,
+  HostListener,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../services/auth.service';
+import { MatDialog } from '@angular/material/dialog';
+import { FontSettingsComponent } from '../services/font-settings.component';
+import { LocalFileHandle, LocalFilesService } from '../services/local-files.service';
 
 @Component({
   selector: 'app-navbar',
@@ -24,6 +28,8 @@ import { AuthService } from '../services/auth.service';
 })
 export class NavbarComponent implements OnInit, OnDestroy {
   @Output() fileSelected = new EventEmitter<File>();
+  @Output() localFileSelected = new EventEmitter<LocalFileHandle>();
+  @Input() busy = false;
   @Output() save = new EventEmitter<void>();
   @Input() showSave = false;
   @Output() closeNav = new EventEmitter<void>();
@@ -41,14 +47,18 @@ export class NavbarComponent implements OnInit, OnDestroy {
   isSubmitting = false;
   currentUserEmail: string | null = null;
   private sessionSub?: Subscription;
+  navTab: 'documents' | 'folder' = 'documents';
 
   constructor(
     private authService: AuthService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef,
+    private dialog: MatDialog,
+    public localFiles: LocalFilesService,
   ) {}
 
   ngOnInit(): void {
+    void this.localFiles.restoreFolder();
     this.currentUserEmail = this.authService.getCurrentUserEmail();
     this.sessionSub = this.authService.session$.subscribe((session) => {
       this.currentUserEmail = session?.user?.email ?? null;
@@ -81,6 +91,20 @@ export class NavbarComponent implements OnInit, OnDestroy {
   onCloseNav() {
     this.closeNav.emit();
   }
+
+  selectNavTab(tab: 'documents' | 'folder', event: Event): void {
+    event.preventDefault();
+    this.navTab = tab;
+    const parent = (event.target as HTMLElement).parentElement;
+    (parent?.querySelector(`#nav-tab-${tab}`) as HTMLElement | null)?.focus();
+  }
+
+  @HostListener('window:focus')
+  refreshLocalFolder(): void {
+    if (!this.busy && !this.localFiles.busy()) void this.localFiles.refresh();
+  }
+
+  openFontSettings() { this.dialog.open(FontSettingsComponent, { maxWidth: '600px', width: '95vw' }); }
 
   openAuthModal() {
     if (this.currentUserEmail) {

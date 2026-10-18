@@ -64,3 +64,47 @@ Open `coverage/index.html` (or the generated project folder under `coverage/`) t
 
 ## More angular firepower
 Check the [Angular CLI documentation](https://angular.dev/tools/cli) for every command and option. When in doubt, we prototype fast, test hard, and keep iterating—because mighty PDF won’t overthrow itself.
+
+## Local folders
+
+For direct local-folder access, linked-file saving, and browser fallbacks, see
+[Local folders in the web app](../docs/local-files.md).
+
+## Document fonts
+
+Use standard `@font-face` declarations for archive-local font files or HTTPS font
+URLs. The WYSIWYG toolbar's **Search Google Fonts** and **Font** controls browse
+the bundled Google Fonts catalog by name and apply a family to the selected text
+or subsequent typing. Only selected families are downloaded; their available
+regular, bold, and italic styles are requested through Google's CSS2 API without
+an API key. Already loaded families remain available under **Document fonts**.
+The **Add an external font** control also accepts a direct font file or a font
+stylesheet URL.
+Google Fonts, Bunny Fonts, and Fontsource's dedicated CDN paths load automatically.
+**Font settings** manages browser-local origin permissions and explicit blocks.
+The reader reports loading failures separately and keeps text readable with a
+fallback font. Export and signing pin remote font bytes in
+`content.externalFonts`; existing signed source bytes are never silently replaced.
+**Include fonts for offline viewing** adds verified copies without changing
+content signatures. Adding copies can obsolete a previous whole-archive seal.
+Local font declarations and binaries survive editing and export.
+
+The catalog is a local snapshot of Google Fonts family names and supported styles,
+so opening or searching the picker makes no catalog requests. To refresh it:
+
+```sh
+curl -fLsS https://fonts.google.com/metadata/fonts -o /tmp/google-fonts-metadata.json
+node scripts/update-google-fonts.mjs /tmp/google-fonts-metadata.json
+```
+
+See [`google_fonts.wdoc`](../examples.wdoc.info/unit_test/google_fonts.wdoc) and its
+[HTML source](../examples.wdoc.info/unpacked/unit_test/google_fonts/index.html) for
+a six-family example without bundled font files.
+
+## Embedded version history
+
+The editor stores local Git history inside each `.wdoc`, with 30-second autosave
+branches, browser draft recovery, real merge commits on Save, restore-as-draft and
+visual merging of another document copy. Linked files are updated directly.
+There is no remote Git synchronization. See [the version history guide](../docs/version-history.md)
+for operation and signature boundaries.

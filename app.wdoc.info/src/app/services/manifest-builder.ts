@@ -30,7 +30,7 @@ export async function generateManifest(
     else if (!runtimePath(entry.name)) originals[entry.name] = await entry.async('uint8array');
   }
   const manifest: WdocManifest = {
-    manifestVersion: '1.0',
+    manifestVersion: '0.1',
     meta: {
       docId: crypto.randomUUID(),
       docTitle: metaOverrides?.docTitle ?? 'WDOC document',

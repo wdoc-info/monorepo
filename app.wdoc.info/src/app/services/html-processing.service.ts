@@ -8,10 +8,12 @@ import QRCode from 'qrcode';
 import { QRCodeToDataURLOptions } from 'qrcode';
 import JsBarcode from 'jsbarcode';
 import { ExternalImageDialogComponent } from './external-image-dialog.component';
+import { ExternalFontService } from './external-font.service';
 import { type ZipContainer } from './zip-reader';
-import { decodeUtf8, safePath } from '../signatures/core';
+import { decodeUtf8, encoder, parseJson, safePath, type Files } from '../signatures/core';
+import type { DocumentAsset } from './document-creator.service';
 import {
-  DEFAULT_DOCUMENT_FONT,
+  DEFAULT_DOCUMENT_FONT_SIZE,
   DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
   DEFAULT_PAGE_HEIGHT,
   DEFAULT_PAGE_PADDING,
@@ -32,6 +34,7 @@ export class HtmlProcessingService {
   private paginationHost?: HTMLElement;
   private paginationContainer?: HTMLElement;
   private objectUrls: string[] = [];
+  private authoringAssets: DocumentAsset[] = [];
   private measuredPageHeight = DEFAULT_PAGE_HEIGHT;
   private readonly barcodeTypes = new Set([
     'codabar',
@@ -55,6 +58,7 @@ export class HtmlProcessingService {
     private dialog: MatDialog,
     private blockExtractorService: BlockExtractorService,
     private documentLayoutEngineService: DocumentLayoutEngineService,
+    private fonts: ExternalFontService,
   ) {
     if (typeof document !== 'undefined') {
       this.paginationContainer = this.createPaginationContainer();
@@ -65,10 +69,26 @@ export class HtmlProcessingService {
     zip: ZipContainer,
     html: string,
     options: ProcessHtmlOptions = {},
-  ): Promise<{ html: string; documentTitle: string }> {
+  ): Promise<{ html: string; documentTitle: string; assets: DocumentAsset[] }> {
+    this.authoringAssets = [];
     // Start the viewer stylesheet request before asynchronous archive resource work.
     const viewerCss = lastValueFrom(this.http.get('assets/wdoc-styles.css', { responseType: 'text' })).catch(() => '');
-    const sanitizedHtml = this.sanitizeHtml(html);
+    let sanitizedHtml = this.sanitizeHtml(html);
+    this.fonts.beginDocument();
+    const fontFiles: Files = { 'index.html': encoder.encode(sanitizedHtml) };
+    for (const entry of zip.entries?.() ?? Object.values((zip as ZipContainer & { files?: Record<string, import('./zip-reader').ZipEntryLike> }).files ?? {})) {
+      if (!entry.dir && (/\.(css|woff2?|ttf|otf)$/i.test(entry.name) || entry.name.startsWith('wdoc-font-cache/'))) fontFiles[entry.name] = await entry.async('uint8array') as Uint8Array;
+    }
+    const manifestFile = zip.file('manifest.json');
+    const manifest = manifestFile ? parseJson(decodeUtf8(await manifestFile.async('uint8array') as Uint8Array)) : undefined;
+    const preparedFonts = await this.fonts.prepare(fontFiles, 'display', manifest?.content?.externalFonts ?? {});
+    this.fonts.activate(preparedFonts);
+    sanitizedHtml = decodeUtf8(preparedFonts.files['index.html']);
+    const originalZip = zip;
+    zip = {
+      folder: (path) => originalZip.folder(path),
+      file: (path) => preparedFonts.files[path] ? { name: path, dir: false, async: async () => preparedFonts.files[path] } : originalZip.file(path),
+    };
     const parser = new DOMParser();
     const doc = parser.parseFromString(sanitizedHtml, 'text/html');
     const documentTitle = this.updateDocumentTitle(
@@ -110,6 +130,7 @@ export class HtmlProcessingService {
           const typedBlob = new Blob([blobContent], { type: this.getMimeType(normalizedSrc) });
           const objectUrl = URL.createObjectURL(typedBlob);
           this.objectUrls.push(objectUrl);
+          this.authoringAssets.push({ path: normalizedSrc, file: typedBlob, objectUrl });
           img.setAttribute('src', objectUrl);
         } catch (error) {
           console.error(`Error reading image ${normalizedSrc} from zip:`, error);
@@ -171,7 +192,7 @@ export class HtmlProcessingService {
     }
     const builtinCss = await viewerCss;
     if (cssCharacters + builtinCss.length + 1 > 30_000_000) throw new Error('Expanded stylesheet exceeds rendering limits.');
-    combinedCSS += builtinCss + '\n';
+    combinedCSS += builtinCss + '\n' + `:host { font-family: ${this.fonts.defaultFamily()}; }`;
 
     this.applyPaginationStyles(combinedCSS);
 
@@ -207,7 +228,7 @@ export class HtmlProcessingService {
     this.applyPageMetadata(doc);
 
     await this.formManagerService.populateFormsFromZip(zip, doc, basePath);
-    return { html: doc.documentElement.outerHTML, documentTitle };
+    return { html: doc.documentElement.outerHTML, documentTitle, assets: this.authoringAssets.slice() };
   }
 
   private sanitizeHtml(html: string): string {
@@ -274,6 +295,7 @@ export class HtmlProcessingService {
           new Blob([content], { type: this.getMimeType(filePath) }),
         );
         this.objectUrls.push(objectUrl);
+        this.authoringAssets.push({ path: filePath, file: content, objectUrl });
 
         // Keep any fragment or query intended for the embedded resource.
         link.href = `${objectUrl}${href.slice(resourcePath.length)}`;
@@ -351,6 +373,7 @@ export class HtmlProcessingService {
       const bytes = await entry.async('uint8array') as Uint8Array;
       url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: this.getMimeType(local.path) }));
       cache.set(local.path, url); this.objectUrls.push(url);
+      this.authoringAssets.push({ path: local.path, file: new Blob([new Uint8Array(bytes)]), objectUrl: url });
     }
     return url + local.fragment;
   }
@@ -464,7 +487,7 @@ export class HtmlProcessingService {
     const pages = this.documentLayoutEngineService.paginateBlocks(
       this.blockExtractorService.extractBlocksFromHtml(contentHtml, {
         contentWidth: DEFAULT_PAGE_WIDTH - DEFAULT_PAGE_PADDING * 2,
-        defaultFont: DEFAULT_DOCUMENT_FONT,
+        defaultFont: `${DEFAULT_DOCUMENT_FONT_SIZE}px ${this.fonts.defaultFamily()}`,
         defaultLineHeight: DEFAULT_DOCUMENT_LINE_HEIGHT_PX,
         measurementRoot: this.paginationContainer,
       }),
@@ -513,6 +536,7 @@ export class HtmlProcessingService {
   }
 
   cleanup(): void {
+    this.fonts.clear();
     if (this.paginationHost?.parentElement) {
       this.paginationHost.remove();
     }

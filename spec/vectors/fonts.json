@@ -1,0 +1,139 @@
+{
+  "description": "External font references are verified locally without fetching fonts. Binary strings in embedded-copy vectors are integrity data, not font-decoding examples.",
+  "cases": [
+    {
+      "id": "pinned-remote-font",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;src:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "https://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": true,
+      "valid": true
+    },
+    {
+      "id": "embedded-pinned-font",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;src:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>",
+        "wdoc-font-cache/JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU": "wOF2 vector font bytes for integrity checks only"
+      },
+      "externalFonts": {
+        "https://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": true,
+      "valid": true,
+      "cacheStatus": "embedded-verified"
+    },
+    {
+      "id": "corrupt-embedded-font",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;src:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>",
+        "wdoc-font-cache/JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU": "Changed font bytes"
+      },
+      "externalFonts": {
+        "https://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": true,
+      "valid": true,
+      "cacheStatus": "invalid-cache"
+    },
+    {
+      "id": "remote-background-is-not-a-font",
+      "files": {
+        "index.html": "<html><head><style>p{background:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "https://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": true,
+      "valid": false
+    },
+    {
+      "id": "undeclared-font",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;src:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {},
+      "structural": true,
+      "valid": false
+    },
+    {
+      "id": "remote-local-substitution",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;src:local(Vector),url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "https://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": true,
+      "valid": false
+    },
+    {
+      "id": "remote-stylesheet-is-not-protected-font-css",
+      "files": {
+        "index.html": "<html><head><style>@import \"https://fonts.example.test/regular.woff2\";</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "https://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": true,
+      "valid": false
+    },
+    {
+      "id": "remote-non-src-descriptor",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;--tracking:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "https://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": true,
+      "valid": false
+    },
+    {
+      "id": "quoted-font-face-text-is-not-a-rule",
+      "files": {
+        "index.html": "<html><head><style>p{content:'@font-face{src:url(\"https://fonts.example.test/regular.woff2\")}'}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "https://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": true,
+      "valid": false
+    },
+    {
+      "id": "http-font-url",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;src:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "http://fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": false,
+      "valid": false
+    },
+    {
+      "id": "credentialed-font-url",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;src:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "https://user@fonts.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": false,
+      "valid": false
+    },
+    {
+      "id": "noncanonical-font-url",
+      "files": {
+        "index.html": "<html><head><style>@font-face{font-family:Vector;src:url(\"https://fonts.example.test/regular.woff2\")}</style></head><body><p>Font vector</p></body></html>"
+      },
+      "externalFonts": {
+        "https://FONTS.example.test/regular.woff2": "JfpqLmP2thQH00y-uudkaflu2JETZ2tl_lsG603JCuU"
+      },
+      "structural": false,
+      "valid": false
+    }
+  ]
+}

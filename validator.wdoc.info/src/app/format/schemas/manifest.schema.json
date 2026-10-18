@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "manifestVersion": {
-      "const": "1.0"
+      "const": "0.1"
     },
     "meta": {
       "$ref": "https://www.wdoc.info/schemas/common.schema.json#/definitions/meta"
@@ -82,5 +82,5 @@
     "signatures"
   ],
   "additionalProperties": false,
-  "description": "Manifest 1.0 structure when the optional manifest.json file is present. WDOC-FORMAT additionally requires exact inventories, nonce openings, matching IDs/paths, unique signature IDs, stable revision document IDs, unique revision scopes, safe UTF-16 path length, and cryptographic bindings."
+  "description": "Manifest 0.1 structure when the optional manifest.json file is present. WDOC-FORMAT additionally requires exact inventories, nonce openings, matching IDs/paths, unique signature IDs, stable revision document IDs, unique revision scopes, safe UTF-16 path length, and cryptographic bindings."
 }

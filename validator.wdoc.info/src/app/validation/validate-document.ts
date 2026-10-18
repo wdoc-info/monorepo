@@ -1,8 +1,8 @@
 import Ajv, { type AnySchema, type ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
-import { readDocumentArchive } from '../format/archive';
-import { assertManifest, decodeBase64url, decodeUtf8, dependenciesValid, documentDigest, isDigest, isIdentifier, isRecord, jcs, parseJson, runtimePath, sha256, verifyDocument, type Check, type Files, type Manifest, type Scope, type Status, type Verification } from '../format/core';
+import { inspectGitHistory, readDocumentArchive } from '../format/archive';
+import { assertManifest, decodeBase64url, decodeUtf8, dependenciesValid, documentDigest, inspectFontResources, isDigest, isIdentifier, isRecord, jcs, parseJson, runtimePath, sha256, verifyDocument, type Check, type Files, type Manifest, type Scope, type Status, type Verification } from '../format/core';
 import { assertPayload } from '../format/validation';
 import { type TrustContext, emptyTrust } from './verification-keys';
 import commonSchema from '../format/schemas/common.schema.json';
@@ -30,10 +30,10 @@ export interface SignatureResult extends Check {
 export interface FileEntry {
     path: string;
     size: number;
-    kind: 'original' | 'manifest' | 'draft' | 'submission' | 'revision' | 'seal';
+    kind: 'original' | 'manifest' | 'draft' | 'submission' | 'revision' | 'seal' | 'font' | 'history';
 }
 export interface ValidationReport {
-    specification: 'WDOC-FORMAT 1.0';
+    specification: 'WDOC-FORMAT 0.1';
     checkedAt: string;
     verdict: 'valid' | 'invalid' | 'unverified';
     format: 'valid' | 'invalid';
@@ -69,9 +69,10 @@ const schemaMessage = (errors: ErrorObject[] | null | undefined) => {
     return error ? `${error.instancePath || '/'} ${error.message ?? 'is invalid'}${'missingProperty' in error.params ? ` (${String(error.params['missingProperty'])})` : ''}` : 'Invalid structure.';
 };
 function fileKind(path: string): FileEntry['kind'] {
+    if (path.startsWith('.git/')) return 'history';
     if (path === 'manifest.json')
         return 'manifest';
-    for (const [prefix, kind] of [['wdoc-form/', 'draft'], ['submissions/', 'submission'], ['revisions/', 'revision'], ['seals/', 'seal']] as const)
+    for (const [prefix, kind] of [['wdoc-form/', 'draft'], ['wdoc-font-cache/', 'font'], ['submissions/', 'submission'], ['revisions/', 'revision'], ['seals/', 'seal']] as const)
         if (path.startsWith(prefix))
             return kind;
     return 'original';
@@ -162,7 +163,7 @@ function signatureResults(verification: Verification, malformed: Set<string>): S
     return rows;
 }
 export async function validateDocument(buffer: ArrayBuffer, trust: TrustContext = emptyTrust(), progress: (phase: string) => void = () => { }): Promise<ValidationReport> {
-    const report: ValidationReport = { specification: 'WDOC-FORMAT 1.0', checkedAt: new Date().toISOString(), verdict: 'invalid', format: 'invalid', documentDigest: null, rootPrefix: null, expandedBytes: 0, files: [], checks: [], recommendations: [], needsKeys: false, signatures: { state: 'not-checked', count: 0, results: [] }, trust: { source: trust.source, state: trust.state, ...(trust.detail ? { detail: trust.detail } : {}) } };
+    const report: ValidationReport = { specification: 'WDOC-FORMAT 0.1', checkedAt: new Date().toISOString(), verdict: 'invalid', format: 'invalid', documentDigest: null, rootPrefix: null, expandedBytes: 0, files: [], checks: [], recommendations: [], needsKeys: false, signatures: { state: 'not-checked', count: 0, results: [] }, trust: { source: trust.source, state: trust.state, ...(trust.detail ? { detail: trust.detail } : {}) } };
     progress('Checking ZIP records, paths, sizes, and CRCs…');
     let files: Files;
     try {
@@ -181,7 +182,7 @@ export async function validateDocument(buffer: ArrayBuffer, trust: TrustContext 
     }
     inspectHtml(decodeUtf8(files['index.html']!), report);
     for (const [path, bytes] of Object.entries(files)) {
-        if (path !== 'index.html' && /\.(html?|css|svg)$/i.test(path)) {
+        if (path !== 'index.html' && !path.startsWith('.git/') && /\.(html?|css|svg)$/i.test(path)) {
             try {
                 decodeUtf8(bytes);
             }
@@ -199,6 +200,8 @@ export async function validateDocument(buffer: ArrayBuffer, trust: TrustContext 
             }
         }
     }
+    const git = inspectGitHistory(files);
+    if (git.status !== 'absent') report.recommendations.push(issue('git-history', git.status === 'unavailable' ? 'warning' : 'info', 'Embedded version history', git.detail, '20'));
     if (!Object.hasOwn(files, 'manifest.json')) {
         report.signatures.state = 'unsigned';
         report.checks.push(issue('manifest', 'info', 'Manifest is optional', 'This is a valid unsigned base document. No document digest or authenticated file inventory is inferred.', '1.2'));
@@ -221,7 +224,7 @@ export async function validateDocument(buffer: ArrayBuffer, trust: TrustContext 
             throw new Error(schemaMessage(validateManifest.errors));
         assertManifest(value);
         manifest = value;
-        report.checks.push(issue('manifest', 'pass', 'Manifest schema and structure', 'Version 1.0, required members, types, dates, paths, IDs, nonce wrappers, and declared extension boundaries pass.', '6', 'manifest.json'));
+        report.checks.push(issue('manifest', 'pass', 'Manifest schema and structure', 'Version 0.1, required members, types, dates, paths, IDs, nonce wrappers, and declared extension boundaries pass.', '6', 'manifest.json'));
     }
     catch (error) {
         report.checks.push(issue('manifest', 'error', 'Manifest is invalid', message(error), '6', 'manifest.json'));
@@ -238,9 +241,14 @@ export async function validateDocument(buffer: ArrayBuffer, trust: TrustContext 
     if (originalOK)
         report.checks.push(issue('inventory', 'pass', 'Original file membership and hashes', 'Every original exists, no original is omitted, and every SHA-256 hash matches its actual bytes.', '7'));
     if (dependenciesValid(manifest, files))
-        report.checks.push(issue('resources', 'pass', 'Static rendering resources', 'Original HTML, SVG, and CSS satisfy the self-contained static integrity profile.', '5.5'));
+        report.checks.push(issue('resources', 'pass', 'Static rendering resources', 'Original HTML, SVG, and CSS use local resources or protected external font references.', '5.5'));
     else
-        report.checks.push(issue('resources', 'error', 'Static rendering profile failed', 'Original HTML/CSS may reference missing, external, active, unsupported, or unprotected resources. See the static dependency rules.', '5.5'));
+        report.checks.push(issue('resources', 'error', 'Static rendering profile failed', 'Original HTML/CSS may reference missing, active, unsupported, or unprotected resources. Only declared external font sources are allowed.', '5.5'));
+    for (const scope of [manifest, ...manifest.runtime.revisions.map(revision => revision.scope)]) for (const font of await inspectFontResources(scope, files)) {
+        if (font.status === 'invalid-cache') report.checks.push(issue(`font:${font.url}`, 'error', 'Embedded font integrity failed', font.detail, '5.6', font.url));
+        else if (font.status === 'embedded-verified') report.checks.push(issue(`font:${font.url}`, 'pass', 'Embedded font fingerprint verified', font.detail, '5.6', font.url));
+        else report.recommendations.push(issue(`font:${font.url}`, 'info', 'External font availability not checked', font.detail + ' This validator never downloads document-selected fonts.', '5.6', font.url));
+    }
     const knownDigests = new Set([await documentDigest(manifest)]);
     for (const revision of manifest.runtime.revisions) {
         const digest = await documentDigest(revision.scope);
@@ -344,7 +352,7 @@ export async function validateDocument(buffer: ArrayBuffer, trust: TrustContext 
     }
     if (report.signatures.count)
         for (const file of report.files)
-            if (/\.(js|mjs|cjs|exe|sh|bat|cmd)$/i.test(file.path))
+            if (!file.path.startsWith('.git/') && /\.(js|mjs|cjs|exe|sh|bat|cmd)$/i.test(file.path))
                 report.checks.push(issue(`executable:${file.path}`, 'error', 'Unsupported signed archive file', 'Signature producers must not introduce executable file names in this profile.', '4.3', file.path));
     progress('Verifying ES256 signatures, commitments, revisions, and seals…');
     try {

@@ -8,11 +8,12 @@ import {
   serializeManifest,
 } from './manifest-builder';
 import { AuthService } from './auth.service';
+import { ExternalFontService } from './external-font.service';
 import { type ZipContainer } from './zip-reader';
 
 @Injectable({ providedIn: 'root' })
 export class FormManagerService {
-  constructor(private authService: AuthService) {}
+  constructor(private authService: AuthService, private fonts: ExternalFontService) {}
 
   async populateFormsFromZip(
     zip: ZipContainer,
@@ -200,12 +201,17 @@ export class FormManagerService {
       zip.file('manifest.json', serializeManifest(parsed));
       return;
     }
-    const creator = this.authService.getCurrentUserEmail();
-    const manifest = await generateManifest(zip, {
-      appVersion: APP_VERSION,
-      ...(creator ? { creator } : {}),
-    });
-    zip.file('manifest.json', serializeManifest(manifest));
+    // Draft persistence must remain available when the reader refuses remote fonts.
+    // A manifestless archive can keep its unsigned base profile in that case.
+    try {
+      const files = Object.fromEntries(await Promise.all(Object.values(zip.files).filter(entry => !entry.dir).map(async entry => [entry.name, await entry.async('uint8array')] as const)));
+      const prepared = await this.fonts.prepare(files, 'pin');
+      for (const [path, bytes] of Object.entries(prepared.files)) zip.file(path, bytes, { createFolders: false });
+      const creator = this.authService.getCurrentUserEmail();
+      const manifest = await generateManifest(zip, { appVersion: APP_VERSION, ...(creator ? { creator } : {}) });
+      if (Object.keys(prepared.externalFonts).length) manifest.content.externalFonts = prepared.externalFonts;
+      zip.file('manifest.json', serializeManifest(manifest));
+    } catch { /* Preserve original document bytes and editable drafts without inventing integrity. */ }
   }
 
   private guessMimeType(name: string): string | undefined {

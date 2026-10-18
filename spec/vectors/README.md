@@ -2,6 +2,13 @@
 
 The vectors accompany the current alpha specification. They are published test data, not documents for real signing. Test keys, account labels, dates, and nonces MUST NOT be used as production credentials or production randomness. The key material is intentionally recognizable test material; there are no production private keys in this directory.
 
+All manifest and historical scope versions use the current alpha version `0.1`.
+The version is part of the protected scope, so its designation is reflected in
+document digests, revision paths, commitments, JWS values, and raw-manifest seal
+inventories throughout these vectors. Original HTML/CSS/answer/attachment bytes,
+test public keys, nonces, SHA-256/ES256 algorithms, and `v1` commitment domains are
+unchanged.
+
 | File | Contents |
 | --- | --- |
 | [registry.json](registry.json) | Two public EC P-256 records and allowed origins: platform attestation and enrolled personal form signing |
@@ -9,6 +16,7 @@ The vectors accompany the current alpha specification. They are published test d
 | [positive.json](positive.json) | Nine complete logical archive file maps and expected reports |
 | [mutations.json](mutations.json) | 54 archive/key-policy mutations, seven JSON parser cases, 20 path cases, 16 ZIP cases, and nine registry cases |
 | [layouts.json](layouts.json) | 17 root/wrapped/minimal unsigned layout acceptance and rejection cases |
+| [fonts.json](fonts.json) | 12 external-font declaration, URL, resource-context, and embedded-copy integrity cases; no network requests |
 | [requests.json](requests.json) | Three valid endpoint bodies and five structurally rejected bodies |
 | [verify.ts](verify.ts) | Executable local validator using the existing repository dependencies |
 
@@ -16,7 +24,7 @@ The vectors accompany the current alpha specification. They are published test d
 
 Every `positive.json` case's `files` object maps exact safe archive paths to **standard padded base64** of actual uncompressed bytes. This is a vector transport encoding; archive files themselves are not base64 text. Decode each value once before hashing, rendering, packing, or verification. `manifest.json` is included in this map so its exact seal-protected bytes are available. There is no implicit newline or whitespace to append.
 
-`canonical`, `canonicalPreimage`, and `utf8` strings in the intermediate file are literal strings after JSON escape decoding. Hash their UTF-8 encoding without a BOM or added newline. `value` is a JSON value, not a second JSON string serialization. The example document digest is `yQHi5nyGFVmX2bUTArXorWSm63gZKl0Yi2pv_CvbCPU`.
+`canonical`, `canonicalPreimage`, and `utf8` strings in the intermediate file are literal strings after JSON escape decoding. Hash their UTF-8 encoding without a BOM or added newline. `value` is a JSON value, not a second JSON string serialization. The example document digest is `dd15tS2aA-gLgKbDwvvlymewCS_LECdxSlHMfsyblBs`.
 
 Inventory assertions compare all own path/hash members independently of JavaScript object prototypes and member order. The runtime's null-prototype dictionaries and the ordinary objects parsed from the vectors represent the same JSON inventory. Regression checks require changed hashes, missing paths, and additional paths to fail comparison. Archive byte comparisons remain strict and preserve every byte.
 
@@ -68,3 +76,7 @@ The script uses Bun and backend dependencies for the verification core, `jose`, 
 To obtain a real ZIP from a vector file map, decode each value and write it under its object key using a ZIP library. Compression and entry timestamps may vary; the cryptographic file bytes and names may not. The repository's offline CLI can then verify it with this test registry. Do not add the test registry to a production trust store.
 
 ECDSA issuance is not assumed deterministic. The published JWS values are fixed verification inputs; a newly issued signature for the same payload need not have identical signature bytes. New vector generation must preserve or explicitly revise downstream raw-manifest/seal preimages. Do not regenerate JWS values as an incidental formatting change.
+
+`history.json` exercises independent Git/document transport budgets and wrapper
+classification. Git runtime mutations in `mutations.json` demonstrate that original
+and form proofs survive history changes while whole-archive seals become obsolete.

@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import { decodeUtf8, safePath, type Files } from './core';
+import { archiveBudget, decodeUtf8, safePath, type Files } from './core';
 
 export interface ArchiveEntry { name: string; directory: boolean; size: number; compressedSize: number; crc: number; start: number; end: number }
 const crcTable = Uint32Array.from({ length: 256 }, (_, value) => {
@@ -19,7 +19,7 @@ export function validateArchive(buffer: ArrayBuffer): ArchiveEntry[] {
   }
   if (end < 0) fail('Invalid ZIP directory.');
   const count = data.getUint16(end + 10, true), offset = data.getUint32(end + 16, true), length = data.getUint32(end + 12, true);
-  if (data.getUint16(end + 4, true) || data.getUint16(end + 6, true) || data.getUint16(end + 8, true) !== count || count > 1000 || offset + length !== end) fail('Unsupported ZIP archive.');
+  if (data.getUint16(end + 4, true) || data.getUint16(end + 6, true) || data.getUint16(end + 8, true) !== count || count > 11002 || offset + length !== end) fail('Unsupported ZIP archive.');
   const names = new Map<string, boolean>();
   function extras(start: number, size: number, name: string, raw: Uint8Array) {
     const limit = start + size;
@@ -49,7 +49,7 @@ export function validateArchive(buffer: ArrayBuffer): ArchiveEntry[] {
     if ((unixType && unixType !== (directory ? 4 : 8)) || ((permissions & 16) && !directory) || (directory && (size || compressedSize || crc))) fail('Unsupported ZIP file type.');
     extras(cursor + 46 + nameLength, extraLength, name, raw);
     total += size;
-    if (size > 10_000_000 || total > 30_000_000) fail('Archive exceeds signing limits.');
+    if (size > 100_000_000 || total > 130_000_000) fail('Archive exceeds limits.');
     const start = data.getUint32(cursor + 42, true);
     if (start + 30 > offset || data.getUint32(start, true) !== 0x04034b50 || data.getUint16(start + 6, true) !== flags || data.getUint16(start + 8, true) !== method) fail('Invalid ZIP local header.');
     const localNameLength = data.getUint16(start + 26, true), localExtraLength = data.getUint16(start + 28, true), body = start + 30 + localNameLength + localExtraLength;
@@ -68,6 +68,7 @@ export function validateArchive(buffer: ArrayBuffer): ArchiveEntry[] {
     entries.push({ name, directory, size, compressedSize, crc, start, end: entryEnd });
     cursor = next;
   }
+  archiveBudget(entries.map(entry => [entry.name, entry.size]));
   if (cursor !== end) fail('Invalid ZIP directory length.');
   for (const name of names.keys()) {
     const segments = name.split('/');
@@ -101,7 +102,7 @@ export async function readArchive(buffer: ArrayBuffer): Promise<{ files: Files; 
       stream.on('data', chunk => {
         if (stopped) return;
         size += chunk.length; total += chunk.length;
-        if (size > record.size || size > 10_000_000 || total > 30_000_000) { stop(new Error('Expanded archive exceeds limits.')); return; }
+        if (size > record.size || total > 130_000_000) { stop(new Error('Expanded archive exceeds limits.')); return; }
         crc = crcUpdate(crc, chunk); chunks.push(chunk);
       }).on('error', stop).on('end', () => {
         if (stopped) return;
@@ -149,4 +150,27 @@ export async function readDocumentArchive(buffer: ArrayBuffer): Promise<{ files:
     }
   }
   return { files, zip, rootPrefix };
+}
+
+/** Optional Git diagnostics never establish identity or invalidate a document proof. */
+export function inspectGitHistory(files: Files): { status: 'absent' | 'present' | 'unavailable'; detail: string } {
+  const paths = Object.keys(files).filter(path => path.startsWith('.git/'));
+  if (!paths.length) return { status: 'absent', detail: 'No embedded history.' };
+  try {
+    const text = (path: string) => decodeUtf8(files[path]!).trim();
+    if (text('.git/HEAD') !== 'ref: refs/heads/main') throw new Error('Expected a main branch HEAD');
+    if (!/^[a-f0-9]{40}$/.test(text('.git/refs/heads/main'))) throw new Error('Missing or invalid main branch');
+    let objects = 0;
+    for (const path of paths) {
+      if (path.startsWith('.git/refs/heads/') && !/^[a-f0-9]{40}$/.test(text(path))) throw new Error('Invalid branch reference');
+      if (/^\.git\/objects\/[a-f0-9]{2}\/[a-f0-9]{38}$/.test(path)) objects++;
+      else if (/^\.git\/objects\/pack\/pack-[a-f0-9]{40}\.pack$/.test(path)) {
+        const bytes = files[path]!;
+        if (bytes.length < 32 || decodeUtf8(bytes.slice(0, 4)) !== 'PACK') throw new Error('Invalid Git pack header');
+        objects += new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(8);
+      }
+    }
+    if (!objects || objects > 10000) throw new Error('Git object count exceeds limits or history is empty');
+    return { status: 'present', detail: 'Embedded Git history present. Structural headers only were inspected; object graphs, declared authors and dates are not authenticated. The editor performs bounded object decoding before using history.' };
+  } catch (error) { return { status: 'unavailable', detail: `History unavailable: ${(error as Error).message}. Document signature verification is independent.` }; }
 }

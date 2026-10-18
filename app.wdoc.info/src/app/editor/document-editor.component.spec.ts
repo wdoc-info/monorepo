@@ -59,6 +59,14 @@ describe('DocumentEditorComponent', () => {
     expect(html).toContain('<th>Test</th>');
     expect(component.pageContents.join('')).toContain('<table');
   });
+  it('retains generated embedded-resource links while rejecting active script URLs', async () => {
+    const editor = component.editor!;
+    editor.commands.setContent('<p><a href="blob:embedded-guide">Guide</a> <a href="javascript:alert(1)">Unsafe link</a></p>');
+    await settle();
+    expect(editor.getHTML()).toContain('href="blob:embedded-guide"');
+    expect(editor.getHTML()).not.toContain('javascript:');
+    expect(editor.getHTML()).toContain('Unsafe link');
+  });
 
   it('exposes basic formatting commands', async () => {
     component.toggleBold();
@@ -69,6 +77,108 @@ describe('DocumentEditorComponent', () => {
 
     await settle();
     expect(component.editor?.isActive('heading', { level: 2 })).toBeTrue();
+  });
+
+  it('filters Google Fonts by name without downloading fonts', () => {
+    const add = spyOn(component.fonts, 'add');
+    component.fontSearch.set('jEtBrAiNs');
+    fixture.detectChanges();
+    const options = fixture.nativeElement.querySelectorAll('optgroup[label="Google Fonts"] option');
+    expect(Array.from(options, (option: any) => option.textContent.trim())).toEqual(['JetBrains Mono']);
+    expect(add).not.toHaveBeenCalled();
+  });
+
+  it('loads a Google font before applying it to the original text selection', async () => {
+    const editor = component.editor!;
+    editor.commands.setContent('<p>First second</p>');
+    await settle();
+    editor.commands.setTextSelection({ from: 1, to: 6 });
+    let finish!: () => void;
+    const loaded = new Promise<void>(resolve => finish = resolve);
+    const add = spyOn(component.fonts, 'add').and.callFake(async () => {
+      await loaded;
+      component.fonts.families.set([{ name: 'Inter', alias: 'wdoc-test-inter' }]);
+    });
+
+    const selecting = component.selectFont('google:Inter');
+    fixture.detectChanges();
+    await Promise.resolve();
+    expect(component.addingFont).toBeTrue();
+    expect(fixture.nativeElement.querySelector('[aria-label="Document font"]').disabled).toBeTrue();
+    expect(editor.getHTML()).not.toContain('wdoc-test-inter');
+    finish();
+    await selecting;
+    await settle();
+
+    expect(add).toHaveBeenCalledWith('Inter', jasmine.stringMatching(/^https:\/\/fonts.googleapis.com\/css2\?/));
+    expect(editor.getHTML()).toContain('<span style="font-family: wdoc-test-inter;">First</span> second');
+    expect(component.selectedFont).toBe('wdoc-test-inter');
+    await component.selectFont('google:Inter');
+    expect(add).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the existing font and exposes a loading error next to the toolbar', async () => {
+    component.fonts.families.set([{ name: 'Existing font', alias: 'wdoc-existing' }]);
+    component.editor!.commands.setContent('<p><span style="font-family:wdoc-existing">Keep this font</span></p>');
+    await settle();
+    component.editor!.commands.setTextSelection({ from: 1, to: 5 });
+    component.selectedFont = 'wdoc-existing';
+    spyOn(component.fonts, 'add').and.rejectWith(new Error('The font could not be loaded.'));
+
+    await component.selectFont('google:Lora');
+    fixture.detectChanges();
+
+    expect(component.selectedFont).toBe('wdoc-existing');
+    expect(component.addingFont).toBeFalse();
+    expect(component.editor!.getHTML()).toContain('wdoc-existing');
+    expect(fixture.nativeElement.querySelector('.font-error[role="alert"]').textContent).toContain('could not be loaded');
+  });
+
+  it('keeps the selected font for subsequent typing and a new paragraph', async () => {
+    component.fonts.families.set([{ name: 'Inter', alias: 'wdoc-typing' }]);
+    const editor = component.editor!;
+    editor.options.onFocus?.({ editor } as any);
+    await settle();
+    await component.selectFont('google:Inter');
+    editor.commands.insertContent('First line');
+    editor.view.dom.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    editor.commands.insertContent('Second line');
+    await settle();
+    expect(editor.getHTML()).toContain('<span style="font-family: wdoc-typing;">First line</span>');
+    expect(editor.getHTML()).toContain('<span style="font-family: wdoc-typing;">Second line</span>');
+  });
+
+  it('does not apply an old selection to text edited during font loading', async () => {
+    const editor = component.editor!;
+    editor.commands.setContent('<p>Original text</p>');
+    await settle();
+    let finish!: () => void;
+    spyOn(component.fonts, 'add').and.returnValue(new Promise<void>(resolve => finish = resolve));
+    const selecting = component.selectFont('google:Inter');
+    editor.commands.setContent('<p>Changed text</p>');
+    finish();
+    await selecting;
+    expect(editor.getHTML()).toBe('<p>Changed text</p>');
+    expect(component.fontError).toContain('text changed');
+    expect(component.addingFont).toBeFalse();
+  });
+
+  it('applies fonts to the active page instead of the first page', async () => {
+    component.pageHeight = 120;
+    component.content = '<p>Page text with several words.</p>'.repeat(8);
+    component.ngOnChanges({ content: new SimpleChange(undefined, component.content, false) });
+    await settle();
+    const firstEditor = component.editor!;
+    const pages = fixture.nativeElement.querySelectorAll('[contenteditable="true"]');
+    expect(pages.length).toBeGreaterThan(1);
+    pages[1].focus();
+    await settle();
+    const activeEditor = component.editor!;
+    expect(activeEditor).not.toBe(firstEditor);
+    activeEditor.commands.selectAll();
+    component.applyFont('wdoc-second-page');
+    expect(activeEditor.getHTML()).toContain('wdoc-second-page');
+    expect(firstEditor.getHTML()).not.toContain('wdoc-second-page');
   });
 
   it('clears the placeholder when the editor gains focus', async () => {

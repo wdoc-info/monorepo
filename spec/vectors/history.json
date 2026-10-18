@@ -1,0 +1,7 @@
+[
+  {"id":"separate-history-budget","entries":[["index.html",10000000],["a.bin",10000000],["b.bin",10000000],[".git/objects/pack/history.pack",100000000]],"valid":true},
+  {"id":"wrapped-history-budget","entries":[["folder/index.html",1],["folder/.git/objects/pack/history.pack",100000000]],"valid":true},
+  {"id":"history-saturation","entries":[["index.html",1],[".git/a",100000000],[".git/b",1]],"valid":false},
+  {"id":"original-limit-unchanged","entries":[["index.html",10000001]],"valid":false},
+  {"id":"dot-git-file-is-not-runtime","entries":[["index.html",1],[".git",10000001]],"valid":false}
+]

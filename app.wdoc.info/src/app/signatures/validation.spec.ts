@@ -12,7 +12,7 @@ describe('Strict format conformance', () => {
   });
   beforeEach(async () => {
     files = { 'index.html': encoder.encode('<form id="approval"></form>') };
-    manifest = { manifestVersion: '1.0', meta: { docId: 'document', appVersion: '1', createdAt: now, contentUpdatedAt: now }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { forms: {}, submissions: {}, revisions: [] }, signatures: { document: [], forms: [] } };
+    manifest = { manifestVersion: '0.1', meta: { docId: 'document', appVersion: '1', createdAt: now, contentUpdatedAt: now }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { forms: {}, submissions: {}, revisions: [] }, signatures: { document: [], forms: [] } };
   });
   const sign = async (payload: unknown, header = {}) => new CompactSign(encoder.encode(jcs(payload))).setProtectedHeader({ alg: 'ES256', typ: 'wdoc-document+jws', kid: key.kid, ...header }).sign(privateKey);
   const rawSign = async (payload: unknown, header: object) => {
@@ -132,5 +132,19 @@ describe('Strict format conformance', () => {
     expect(() => assertManifest(manifest)).not.toThrow();
     manifest.runtime.forms = { default: { hashAlgorithm: 'sha256', files: {} } };
     expect(() => assertManifest(manifest)).toThrow();
+  });
+});
+
+// Git receives a separate budget, never a larger allowance for original content.
+import { archiveBudget } from './validation';
+describe('Git transport budgets', () => {
+  it('accepts bounded history alongside a full document and its enclosing folder', () => {
+    expect(() => archiveBudget([['folder/index.html', 10_000_000], ['folder/a.bin', 10_000_000], ['folder/b.bin', 10_000_000], ['folder/.git/objects/pack/a.pack', 100_000_000]])).not.toThrow();
+  });
+  it('rejects content and history saturation independently', () => {
+    expect(() => archiveBudget([['index.html', 10_000_001]])).toThrow();
+    expect(() => archiveBudget([['index.html', 1], ['.git/one', 100_000_000], ['.git/two', 1]])).toThrow();
+    expect(() => archiveBudget([['index.html', 1], ['.git', 10_000_001]])).toThrow();
+    expect(() => archiveBudget(Array.from({ length: 10001 }, (_, n) => [`.git/${n}`, 0]))).toThrow();
   });
 });

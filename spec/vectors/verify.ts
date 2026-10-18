@@ -1,3 +1,4 @@
+import { archiveBudget } from '../../app.wdoc.info/src/app/signatures/validation';
 // Run from any directory with: bun /absolute/path/to/spec/vectors/verify.ts
 // Uses existing app/backend dependencies and never contacts a signing service.
 import assert from 'node:assert/strict';
@@ -7,7 +8,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readArchive, readDocumentArchive, validateArchive } from '../../backend.wdoc.info/src/signatures/archive';
-import { assertKeyRegistry, assertManifest, commitment, documentDigest, encoder, inventory, jcs, parseJson, safePath, verifyDocument, type Files, type Manifest } from '../../backend.wdoc.info/src/signatures/core';
+import { assertKeyRegistry, assertManifest, commitment, dependenciesValid, documentDigest, encoder, inspectFontResources, inventory, jcs, parseJson, runtimePath, safePath, verifyDocument, type Files, type Manifest } from '../../backend.wdoc.info/src/signatures/core';
 import { assertPayload } from '../../backend.wdoc.info/src/signatures/validation';
 import { KeyResolverService } from '../../backend.wdoc.info/src/signatures/services';
 
@@ -46,6 +47,17 @@ new KeyResolverService(registry.keys, registry.allowedOrigins);
 const positive = (await json('positive.json')).cases;
 const intermediate = await json('intermediates.json');
 const mutations = await json('mutations.json');
+const fontVectors = (await json('fonts.json')).cases;
+for (const vector of fontVectors) {
+  const files: Files = Object.fromEntries(Object.entries(vector.files).map(([path, text]) => [path, encoder.encode(text as string)]));
+  const manifest = { manifestVersion: '0.1', meta: intermediate.scope.value.meta, content: { hashAlgorithm: 'SHA-256', files: await inventory(Object.fromEntries(Object.entries(files).filter(([path]) => !runtimePath(path)))), externalFonts: vector.externalFonts }, runtime: { submissions: {}, revisions: [] }, signatures: { document: [], forms: [] } };
+  let structural = true; try { assertManifest(manifest); } catch { structural = false; }
+  equal(structural, vector.structural, `${vector.id} structure`);
+  if (!structural) continue;
+  schema('manifest.schema.json', manifest);
+  equal(dependenciesValid(manifest as Manifest, files), vector.valid, `${vector.id} dependencies`);
+  if (vector.cacheStatus) equal((await inspectFontResources(manifest as Manifest, files))[0].status, vector.cacheStatus, `${vector.id} cached bytes`);
+}
 
 const expectedInventory = { 'index.html': hash('html'), 'wdoc-assets/style.css': hash('css') };
 const nullPrototypeInventory = Object.assign(Object.create(null), {
@@ -280,6 +292,7 @@ function compareStructure(base: any, runtime: (value: any) => void, schemaName: 
 const revised = positive.find((c: any) => c.id === 'revised');
 compareStructure(parseJson(decode(bytes(revised.files)['manifest.json'])), assertManifest, 'manifest.schema.json');
 compareStructure(parseJson(decode(bytes(positive.find((c: any) => c.id === 'editable-draft').files)['manifest.json'])), assertManifest, 'manifest.schema.json');
+compareStructure({ ...intermediate.scope.value, content: { ...intermediate.scope.value.content, externalFonts: fontVectors[0].externalFonts }, runtime: { submissions: {}, revisions: [] }, signatures: { document: [], forms: [] } }, assertManifest, 'manifest.schema.json');
 compareStructure(registry, v => assertKeyRegistry(v.keys, v.allowedOrigins), 'key-registry.schema.json');
 for (const kind of ['document', 'form', 'seal'] as const) compareStructure(intermediate.payloads[kind], v => assertPayload(v, kind), `${kind}-jws.schema.json`);
 
@@ -303,6 +316,11 @@ async function checkLinks(folder: string) {
       }
     }
   }
+}
+const historyBudgets = JSON.parse(await readFile(resolve(here, 'history.json'), 'utf8'));
+for (const vector of historyBudgets) {
+  let valid = true; try { archiveBudget(vector.entries); } catch { valid = false; }
+  assert.equal(valid, vector.valid, vector.id); assertions++;
 }
 await checkLinks(resolve(here, '..'));
 console.log(`Specification validation passed: ${schemaNames.length} schemas, ${positive.length} positive archives, ${mutations.cases.length} mutations, ${mutations.json.length} JSON cases, ${mutations.paths.length} paths, ${mutations.zip.length} ZIP safety cases, ${layouts.length} layout cases, ${mutations.registries.length} registries, ${substitutionCases} schema/runtime substitutions, and ${assertions} assertions.`);

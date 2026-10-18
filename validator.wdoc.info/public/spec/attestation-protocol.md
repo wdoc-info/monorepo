@@ -1,6 +1,6 @@
 # WDOC-ATTESTATION: commitment attestation protocol
 
-Status: alpha project specification. Companion to [WDOC-FORMAT](wdoc-format.md), manifest `1.0`, commitment domains `v1`.
+Status: alpha project specification. Companion to [WDOC-FORMAT](wdoc-format.md), manifest `0.1`, commitment domains `v1`.
 
 ## 1. Purpose and requirement language
 

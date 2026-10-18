@@ -17,7 +17,11 @@ export function safePath(path: unknown): path is string {
   }
   return path.split('/').every(s => s !== '' && !['.', '..', '__proto__', 'constructor', 'prototype'].includes(s));
 }
-export function runtimePath(path: string): boolean { return /^(wdoc-form|submissions|seals|revisions)\//.test(path); }
+export function runtimePath(path: string): boolean { return /^(\.git|wdoc-form|wdoc-font-cache|submissions|seals|revisions)\//.test(path); }
+export function externalFontUrl(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 2048 || /[\s\\{};"'<>]/.test(value)) return false;
+  try { const url = new URL(value); return url.protocol === 'https:' && !url.username && !url.password && !url.hash && url.href === value; } catch { return false; }
+}
 export function fields(value: unknown, required: string[], optional: string[] = [], extensions = false): asserts value is Record<string, any> {
   requireValid(isRecord(value) && required.every(k => Object.hasOwn(value, k)), 'Invalid object structure');
   requireValid(extensions || Object.keys(value).every(k => required.includes(k) || optional.includes(k)), 'Unknown object member');
@@ -41,13 +45,18 @@ function hashMap(value: unknown, original = false): asserts value is Record<stri
 }
 export function assertScopeStructure(value: unknown): asserts value is Scope {
   fields(value, ['manifestVersion', 'meta', 'content']);
-  requireValid(value['manifestVersion'] === '1.0', 'Unsupported manifest version');
+  requireValid(value['manifestVersion'] === '0.1', 'Unsupported manifest version');
   fields(value['meta'], ['docId', 'appVersion', 'createdAt', 'contentUpdatedAt'], [], true);
   requireValid(isIdentifier(value['meta']['docId']) && nonempty(value['meta']['appVersion']) && isDateTime(value['meta']['createdAt']) && isDateTime(value['meta']['contentUpdatedAt']), 'Invalid metadata');
   for (const key of ['docTitle', 'creator', 'docVersion']) optional(value['meta'], key, string);
   fields(value['content'], ['hashAlgorithm', 'files'], [], true);
   requireValid(value['content']['hashAlgorithm'] === 'SHA-256', 'Unsupported hash algorithm');
   hashMap(value['content']['files'], true);
+  if (Object.hasOwn(value['content'], 'externalFonts')) {
+    const fonts = value['content']['externalFonts'];
+    requireValid(isRecord(fonts) && Object.keys(fonts).length <= 64, 'Invalid external font inventory');
+    for (const [url, hash] of Object.entries(fonts)) requireValid(externalFontUrl(url) && isDigest(hash), 'Invalid external font inventory');
+  }
   requireValid(Object.hasOwn(value['content']['files'], 'index.html'), 'Missing original index.html');
 }
 function wrappers(value: unknown, ids: Set<string>, form = false) {
@@ -132,5 +141,24 @@ export function assertKeyRegistry(value: unknown, allowedOrigins?: string[]): as
     requireValid(k['jwk']['kty'] === 'EC' && k['jwk']['crv'] === 'P-256' && isDigest(k['jwk']['x']) && isDigest(k['jwk']['y']) && !Object.hasOwn(k['jwk'], 'd'), 'Invalid public key');
     optional(k['jwk'], 'alg', v => v === 'ES256'); optional(k['jwk'], 'use', v => v === 'sig'); optional(k['jwk'], 'kid', string);
     optional(k['jwk'], 'key_ops', v => Array.isArray(v) && v.every(string) && v.includes('verify'));
+  }
+}
+
+/** Independent transport budgets: history must not consume the document allowance. */
+export function archiveBudget(entries: [string, number][]): void {
+  const names = entries.map(([path]) => path);
+  const roots = new Set(names.map(path => path.split('/')[0]));
+  const prefix = !names.includes('index.html') && roots.size === 1 ? `${names[0]?.split('/')[0]}/` : '';
+  let contentBytes = 0, contentCount = 0, gitBytes = 0, gitCount = 0;
+  for (const [physical, size] of entries) {
+    const path = physical.startsWith(prefix) ? physical.slice(prefix.length) : physical;
+    if (!path) continue;
+    if (path.startsWith('.git/')) {
+      gitBytes += size; gitCount++;
+      requireValid(size <= 100_000_000 && gitBytes <= 100_000_000 && gitCount <= 10_000, 'Git history exceeds limits');
+    } else {
+      contentBytes += size; contentCount++;
+      requireValid(size <= 10_000_000 && contentBytes <= 30_000_000 && contentCount <= 1000, 'Expanded archive exceeds limits');
+    }
   }
 }

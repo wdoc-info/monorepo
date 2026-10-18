@@ -8,7 +8,14 @@ This repo contains independent application, API, website, validator, and fixture
 - A prompt in French or any other language does not change this rule. Respond to the user in their language when appropriate, but write repository changes in English.
 - Preserve user document bytes, signed content, third-party material, and existing test fixtures as data; do not translate or rewrite them incidentally. Translate repository-authored prose when editing it.
 
-## Format specification is mandatory
+## Alpha design and evolving specification
+
+- wdoc is in the alpha ideation phase. No format, protocol, architecture, or feature decision is frozen; the current format version is `0.1`.
+- Treat the specification as the current agreed design, which evolves with discussions, experiments, and implementation decisions. Never reject an idea solely because it is absent from, or conflicts with, the current specification.
+- Evaluate proposed changes on their merits, explain concrete tradeoffs, and adapt the specification and implementation together when a direction is chosen. Existing requirements describe current behavior, not permanent constraints on future design.
+- Breaking changes are acceptable during alpha. Do not invent stable-release compatibility guarantees, legacy profiles, or migration requirements unless explicitly requested. Runtime validation must still enforce the currently agreed format.
+
+## Format specification must follow design changes
 
 - [`spec/README.md`](spec/README.md) is the entry point to the normative wdoc format specification. Read the relevant sections before changing format behavior.
 - Every format change MUST update the specification in the same change. This includes archive structure, paths, manifest fields, HTML elements and attributes, form persistence, snapshots, revisions, canonicalization, hashes, signatures, commitments, seals, trust rules, validation, compatibility, limits, and the signing protocol.
@@ -150,6 +157,7 @@ to the validator. Keep optional recommendations separate from conformance errors
 - Do not rewrite fixtures in `examples.wdoc.info/` unless explicitly asked.
 - Prefer minimal, scoped edits within one subrepo.
 - For cross-repo changes, document assumptions in the root `README.md`.
+- The user authorizes all `npm run` variants for this project; do not ask for repeated confirmation before running these scripts. Respect platform sandbox enforcement.
 - Always run tests after code changes: `npm test` (frontend) or `bun test` (backend).
 - When modifying pagination logic (`splitHtmlToPages.ts`), test extensively — reflow bugs cause infinite loops.
 - JSZip operations are async — always `await` them.

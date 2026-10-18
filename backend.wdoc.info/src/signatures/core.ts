@@ -2,14 +2,14 @@
 import canonicalize from 'canonicalize';
 import { parse, type DefaultTreeAdapterMap } from 'parse5';
 import { compactVerify, importJWK, type JWK } from 'jose';
-import { assertKeyRegistry, assertManifestStructure, assertPayload, COMMITMENT_PATTERN, isDigest, isIdentifier, isRecord, requireValid, runtimePath, safePath, validKid } from './validation';
-export { assertKeyRegistry, assertDraftSection, isDateTime, isDigest, isIdentifier, isRecord, COMMITMENT_PATTERN, runtimePath, safePath } from './validation';
+import { archiveBudget, assertKeyRegistry, assertManifestStructure, assertPayload, COMMITMENT_PATTERN, externalFontUrl, isDigest, isIdentifier, isRecord, requireValid, runtimePath, safePath, validKid } from './validation';
+export { archiveBudget, assertKeyRegistry, assertDraftSection, externalFontUrl, isDateTime, isDigest, isIdentifier, isRecord, COMMITMENT_PATTERN, runtimePath, safePath } from './validation';
 
 export type Files = Record<string, Uint8Array>;
 export interface Scope {
-  manifestVersion: '1.0';
+  manifestVersion: '0.1';
   meta: { docId: string; appVersion: string; createdAt: string; contentUpdatedAt: string; docTitle?: string; creator?: string; docVersion?: string; [key: string]: unknown };
-  content: { hashAlgorithm: 'SHA-256'; files: Record<string, string>; [key: string]: unknown };
+  content: { hashAlgorithm: 'SHA-256'; files: Record<string, string>; externalFonts?: Record<string, string>; [key: string]: unknown };
 }
 export interface Submission {
   submissionId: string; answersFile: string; attachments: string[]; createdAt: string;
@@ -30,7 +30,8 @@ export interface Check {
   signatureId?: string; formId?: string; submissionId?: string; status: Status;
   kid?: string; owner?: string; authority?: string; signer?: unknown; signedAt?: string; detail?: string; proofMode?: 'digest-only';
 }
-export interface Verification { documentDigest: string; content: Check; document: Check[]; forms: Check[]; seals: Check[]; revisions: Check[] }
+export interface FontResourceCheck { url: string; status: 'embedded-verified' | 'not-checked' | 'invalid-cache'; detail: string }
+export interface Verification { documentDigest: string; content: Check; document: Check[]; forms: Check[]; seals: Check[]; revisions: Check[]; fontResources?: FontResourceCheck[] }
 export const encoder = new TextEncoder();
 export function jcs(value: unknown): string {
   // canonicalize uses ECMAScript number/string serialization and UTF-16 key order.
@@ -90,13 +91,9 @@ export function decodeBase64url(value: string): Uint8Array {
   return bytes;
 }
 export function assertFiles(files: Files): void {
-  requireValid(isRecord(files) && Object.keys(files).length <= 1000, 'Too many archive files');
-  let total = 0;
-  for (const [path, bytes] of Object.entries(files)) {
-    requireValid(safePath(path) && bytes instanceof Uint8Array, 'Invalid archive file');
-    total += bytes.length;
-    requireValid(bytes.length <= 10_000_000 && total <= 30_000_000, 'Expanded archive exceeds limits');
-  }
+  requireValid(isRecord(files), 'Invalid archive files');
+  for (const [path, bytes] of Object.entries(files)) requireValid(safePath(path) && bytes instanceof Uint8Array, 'Invalid archive file');
+  archiveBudget(Object.entries(files).map(([path, bytes]) => [path, bytes.length]));
 }
 export function scopeOf(manifest: Scope): Scope {
   return { manifestVersion: manifest.manifestVersion, meta: manifest.meta, content: manifest.content };
@@ -172,13 +169,36 @@ function walkHtml(html: string, visit: (node: DefaultTreeAdapterMap['element']) 
   };
   walk(parse(html));
 }
-// Signed originals must be self-contained. Runtime files cannot supply rendering resources.
+export function fontFaceBlocks(text: string): Array<{ text: string; body: string; index: number }> {
+  const blocks: Array<{ text: string; body: string; index: number }> = [];
+  const pattern = /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\/\*[\s\S]*?\*\/|@font-face\s*\{((?:[^{}"']|"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')*)\}/gi;
+  for (const match of text.matchAll(pattern)) if (match[1] !== undefined) blocks.push({ text: match[0], body: match[1], index: match.index! });
+  return blocks;
+}
+export function cssUrls(text: string): string[] {
+  return Array.from(text.matchAll(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi))
+    .filter(match => !/^["']/.test(match[0])).map(match => (match[1] ?? match[2] ?? match[3]!).trim());
+}
+export async function inspectFontResources(scope: Scope, files: Files): Promise<FontResourceCheck[]> {
+  const checks: FontResourceCheck[] = [];
+  for (const [url, hash] of Object.entries(scope.content.externalFonts ?? {})) {
+    const bytes = files[`wdoc-font-cache/${hash}`];
+    checks.push({ url, status: !bytes ? 'not-checked' : await sha256(bytes) === hash ? 'embedded-verified' : 'invalid-cache', detail: !bytes ? 'Remote font bytes were not fetched; their expected SHA-256 fingerprint is protected by the document scope.' : 'The embedded font copy is checked against its protected fingerprint.' });
+  }
+  for (const [path, bytes] of Object.entries(files)) if (path.startsWith('wdoc-font-cache/')) {
+    const hash = path.slice('wdoc-font-cache/'.length);
+    if (!isDigest(hash) || await sha256(bytes) !== hash) checks.push({ url: path, status: 'invalid-cache', detail: 'The font cache path or its content fingerprint is invalid.' });
+  }
+  return checks;
+}
+// Only pinned @font-face sources may be remote. Other rendering resources remain local.
 export function dependenciesValid(scope: Scope, files: Files): boolean {
   try {
-    const reference = (value: string, path: string) => {
+    const reference = (value: string, path: string, font = false) => {
       const ref = value.trim();
       if (!ref || ref.startsWith('#') || /^data:(?:image\/(?:png|jpe?g|gif|webp|avif)|font\/|application\/(?:font|octet-stream))/i.test(ref)) return;
       const url = new URL(ref, `https://archive.invalid/${path}`);
+      if (font && externalFontUrl(ref) && Object.hasOwn(scope.content.externalFonts ?? {}, ref)) return;
       const resolved = decodeURIComponent(url.pathname.slice(1));
       if (url.origin !== 'https://archive.invalid' || !safePath(resolved) || !Object.hasOwn(scope.content.files, resolved)) throw new Error('Unprotected rendering resource');
     };
@@ -186,7 +206,17 @@ export function dependenciesValid(scope: Scope, files: Files): boolean {
       // This profile rejects CSS escapes and image-set string URLs rather than interpreting ambiguous dependencies.
       const normalized = text.replace(/\\200[bB](?=["'])/g, '\u200b');
       if (normalized.includes('\\') || /image-set\s*\(/i.test(normalized)) throw new Error('Unsupported CSS dependency');
-      const clean = normalized.replace(/\/\*[\s\S]*?\*\//g, '');
+      let clean = normalized.replace(/\/\*[\s\S]*?\*\//g, '');
+      for (const block of fontFaceBlocks(clean).reverse()) {
+        const source = /(?:^|;)\s*src\s*:\s*([^;]*)/i.exec(block.body);
+        if (source) {
+          const urls = cssUrls(source[1]!);
+          if (urls.some(url => externalFontUrl(url)) && /local\s*\(/i.test(source[1]!)) throw new Error('Pinned fonts cannot use local font substitution');
+          for (const url of urls) reference(url, path, true);
+          for (const url of cssUrls(block.body.replace(source[0], ''))) reference(url, path);
+        } else for (const url of cssUrls(block.body)) reference(url, path);
+        clean = clean.slice(0, block.index) + clean.slice(block.index + block.text.length);
+      }
       for (const match of clean.matchAll(/url\s*\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)/gi)) reference(match[1] ?? match[2] ?? match[3]!, path);
       for (const match of clean.matchAll(/@import\s+["']([^"']+)["']/gi)) reference(match[1]!, path);
     };
@@ -290,5 +320,6 @@ export async function verifyDocument(manifest: Manifest, files: Files, keys: Key
     }
     seals.push({ ...check, signatureId: path });
   }
-  return { documentDigest: digest, content: { status: contentOK ? 'valid-untrusted' : 'file-modified', detail: 'Hashes alone do not authenticate identity.' }, document: document.length ? document : [{ status: 'unsigned' }], forms, seals, revisions };
+  const fontResources = (await Promise.all([manifest, ...manifest.runtime.revisions.map(revision => revision.scope)].map(scope => inspectFontResources(scope, files)))).flat();
+  return { documentDigest: digest, content: { status: contentOK ? 'valid-untrusted' : 'file-modified', detail: 'Hashes alone do not authenticate identity.' }, document: document.length ? document : [{ status: 'unsigned' }], forms, seals, revisions, fontResources };
 }

@@ -10,6 +10,8 @@
         <button [disabled]="busy" (click)="mutate('seal')">Seal complete archive</button>
         <button [disabled]="busy" (click)="download()">Download archive</button>
       </div>
+      <label><input type="checkbox" [(ngModel)]="includeFonts" /> Include fonts for offline viewing</label>
+      @if (includeFonts && report.seals.length) { <p>Adding missing font copies preserves content signatures and changes the archive covered by an existing seal. Seal the exported archive again if needed.</p> }
       <p>To co-sign, exchange the .wdoc file through your preferred channel. This app does not upload or store it on a document server.</p>
       @if (forms.length) {
         <label>Form <select [(ngModel)]="selectedForm">@for (form of forms; track $index) { <option [ngValue]="$index">{{ form.id || 'form-' + ($index + 1) }}</option> }</select></label>

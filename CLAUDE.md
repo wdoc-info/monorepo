@@ -5,6 +5,11 @@ contains the repository rules. All repository-authored content must be in Englis
 regardless of prompt language. Every format change must update [spec/](spec/README.md)
 and its affected schemas, vectors, and format rules in the same change.
 
+wdoc is in alpha ideation, with current format version `0.1`. No design decision
+is frozen. Evaluate ideas on their merits and evolve the specification with accepted
+changes; do not reject a proposal solely because the current specification does not
+support it. Runtime checks still enforce the current agreed format.
+
 ## Project identity
 
 **wdoc** is an open document format built around native HTML/CSS in a ZIP archive,

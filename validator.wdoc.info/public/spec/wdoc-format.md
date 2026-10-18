@@ -1,6 +1,10 @@
-# WDOC-FORMAT: wdoc document format 1.0
+# WDOC-FORMAT: wdoc document format 0.1
 
-Status: alpha project specification. Manifest profile `1.0`; commitment domains `v1`.
+Status: alpha project specification. Manifest profile `0.1`; commitment domains `v1`.
+
+This is a provisional alpha design. No requirement is frozen: accepted design
+changes must update this specification and the implementation together. The
+requirements below define current conformance, not limits on future ideas.
 
 ## Abstract
 
@@ -135,8 +139,8 @@ A producer MUST create an ordinary single-disk ZIP with STORED (method 0) or DEF
 
 1. A complete end-of-central-directory record ends at the end of the byte stream, including its declared comment. Trailing bytes are not allowed.
 2. Disk numbers are zero; central-directory counts agree. The central directory ends immediately before the end record.
-3. There are at most 1,000 central-directory entries, counting directories.
-4. Declared uncompressed size is at most 10,000,000 bytes per file and 30,000,000 bytes across the archive. These limits use decimal bytes, not MiB. Every reader MUST also enforce actual expanded sizes during decompression, before retaining data beyond a limit, and require actual size/CRC to match the directory. The same limits apply to display, signing, draft saves, and offline verification, including `manifest.json`.
+3. There are at most 1,000 logical non-Git entries and 10,000 logical `.git/` entries, counting directories. One transport wrapper directory does not consume these budgets.
+4. Outside `.git/`, declared uncompressed size is at most 10,000,000 bytes per file and 30,000,000 bytes in total. The independent `.git/` allowance is 100,000,000 expanded bytes in total and per file. These limits use decimal bytes, not MiB. Every reader MUST also enforce actual expanded sizes during decompression, before retaining data beyond a limit, and require actual size/CRC to match the directory. The same limits apply to display, signing, draft saves, and offline verification, including `manifest.json`.
 5. Encryption and ZIP64 are unsupported. The ZIP64 extra field `0x0001` MUST be rejected.
 6. Entry names are valid UTF-8. Non-ASCII names require the ZIP UTF-8 flag, bit 11. A Unicode-path extra field `0x7075`, if present in either header, MUST have version 1, a matching name CRC, and exactly the same decoded name as the central-directory name. Conflicting alternate names MUST be rejected.
 7. Duplicate file names, duplicate directory names, and file/directory aliases MUST be rejected before a ZIP library can overwrite or normalize them. Directory names end with `/`; the remainder must satisfy the path predicate. A regular file cannot also be the parent of another entry.
@@ -163,8 +167,10 @@ Examples: `wdoc-assets/logo.png` and `attachments/terms 2026.pdf` are safe; `/in
 
 | Path or prefix | Meaning | In original inventory? |
 | --- | --- | --- |
+| `.git/` | Optional embedded Git history (Section 20) | No |
 | `index.html` | Required root HTML entry point | Yes |
-| `manifest.json` | Optional root integrity/signature manifest, version `1.0` when present | No; only its protected scope is digested |
+| `manifest.json` | Optional root integrity/signature manifest, version `0.1` when present | No; only its protected scope is digested |
+| `wdoc-font-cache/<digest>` | Optional digest-checked font bytes for offline rendering | No; runtime, covered by seals |
 | `wdoc-assets/` | Conventional local images, CSS, fonts, and other resources | Yes |
 | `wdoc-attachment/` | Conventional original document attachments | Yes |
 | `forms/<formId>.json` | Optional protected form descriptor recognized by signing preparation | Yes |
@@ -174,9 +180,9 @@ Examples: `wdoc-assets/logo.png` and `attachments/terms 2026.pdf` are safe; `/in
 | `seals/` | Whole-archive JWS and nonce files | No; separately committed |
 | Any other safe file path | Original content/resource | Yes |
 
-Only these four exact, case-sensitive prefixes are runtime prefixes: `wdoc-form/`, `submissions/`, `seals/`, `revisions/`. In particular, `wdoc-attachment/` is original content. A file named `submissions` without a slash is not in that runtime prefix. Producers SHOULD avoid such confusing names.
+Only these six exact, case-sensitive prefixes are runtime prefixes: `.git/`, `wdoc-form/`, `wdoc-font-cache/`, `submissions/`, `seals/`, `revisions/`. In particular, `wdoc-attachment/` is original content. A file named `submissions` without a slash is not in that runtime prefix. Producers SHOULD avoid such confusing names.
 
-When a manifest is present, all non-runtime regular files except `manifest.json` MUST be listed in `content.files`; all listed originals MUST exist. Unknown non-runtime files are not silently ignored, including OS metadata files. A signature producer MUST NOT introduce files ending in `.js`, `.mjs`, `.cjs`, `.exe`, `.sh`, `.bat`, or `.cmd` anywhere, case-insensitively. New submission attachments have the additional restrictions in Section 9.3.
+When a manifest is present, all non-runtime regular files except `manifest.json` MUST be listed in `content.files`; all listed originals MUST exist. Unknown non-runtime files are not silently ignored, including OS metadata files. A signature producer MUST NOT introduce files ending in `.js`, `.mjs`, `.cjs`, `.exe`, `.sh`, `.bat`, or `.cmd` outside the inert `.git/` namespace, case-insensitively. New submission attachments have the additional restrictions in Section 9.3.
 
 Under `seals/`, regular files have only `seals/<signatureId>.jws` or `seals/<signatureId>.nonce` names. Each seal MUST have exactly its matching JWS and nonce files; a file without its partner is invalid. Other runtime files may exist but are not implicitly authenticated by a document signature. A seal covers them as ordinary files.
 
@@ -220,7 +226,7 @@ Angle-bracket placeholders in this illustration are not literal paths.
 
 Standard static HTML provides text, headings, lists, tables, images, links, and native form controls. Styles may be inline, in `style` elements, or in archive-local stylesheets. Local paths are interpreted relative to the containing resource. Raw HTML and CSS bytes are hashed; the sanitized/rendered DOM is not substituted into `content.files`.
 
-The reference viewer turns local images, CSS images/fonts, and attachment links into temporary blob URLs. It resolves each local CSS reference relative to the containing stylesheet, including nested imports. Imports are expanded locally, preserving layer, supports, and media conditions; cyclic imports are omitted. Per rendering operation, at most 1,000 import expansions and 64 nested stylesheet paths are supported. Resolved CSS is limited to 30,000,000 UTF-16 code units across root stylesheets and style attributes, including the built-in stylesheet and before HTML serialization escaping. Exceeding these rendering limits reports an error. External CSS dependencies are removed without fetching; external-image consent is a separate behavior. Stylesheet text MUST NOT escape its serialized `style` element. Blob URLs and generated QR/barcode graphics are rendering artifacts and MUST NOT replace original file paths during integrity verification. A viewer MUST sanitize document HTML before injecting it. It MUST NOT execute document scripts. Shadow DOM provides style isolation in the reference viewer; it is not a standalone security sandbox.
+The reference viewer turns local images, CSS images, and attachment links into temporary blob URLs. It preloads supported local and external font binaries before measuring layout; local CSS font references can also use temporary blob URLs. It resolves each local CSS reference relative to the containing stylesheet, including nested imports. Imports are expanded locally, preserving layer, supports, and media conditions; cyclic imports are omitted. Per rendering operation, at most 1,000 import expansions and 64 nested stylesheet paths are supported. Resolved CSS is limited to 30,000,000 UTF-16 code units across root stylesheets and style attributes, including the built-in stylesheet and before HTML serialization escaping. Exceeding these rendering limits reports an error. External stylesheets used for fonts are processed under Section 5.6; other external CSS dependencies are removed. External-image consent is a separate behavior. Stylesheet text MUST NOT escape its serialized `style` element. Blob URLs and generated QR/barcode graphics are rendering artifacts and MUST NOT replace original file paths during integrity verification. A viewer MUST sanitize document HTML before injecting it. It MUST NOT execute document scripts. Shadow DOM provides style isolation in the reference viewer; it is not a standalone security sandbox.
 
 ### 5.2. wdoc elements
 
@@ -262,30 +268,104 @@ For QR codes, `errorcorrection` accepts `L`, `M`, `Q`, or `H`, case-insensitivel
 
 Supported linear type names are `codabar`, `code128`, `code39`, `ean`, `ean8`, `ean13`, `itf`, `itf14`, `msi`, `pharmacode`, `upc`, `upca`, and `upce`. These are passed as uppercase library format names; actual value validity and format aliases follow the renderer's barcode library. Generated output is SVG; class, style, height, width, and accessibility attributes are copied where supported. Generation failures fall back to text; an unknown type leaves the element's text unencoded. A barcode does not itself sign or authenticate its value.
 
-### 5.5. Self-contained static integrity profile
+### 5.5. Static integrity profile
 
-Manifest 1.0 integrity verification uses this resource profile locally, including for unsigned version-1.0 archives:
+Manifest 0.1 integrity verification uses this resource profile locally, including for unsigned version-0.1 archives:
 
 1. Inspect every original whose extension is `.html`, `.htm`, `.svg`, or `.css`, case-insensitively. HTML parsing includes template contents.
 2. Reject `base`, `iframe`, `object`, `embed`, `script`, SVG animation elements `animate`, `animateMotion`, `animateTransform`, `set`, and `foreignObject`.
 3. Reject `srcset`. Inspect every `src`, `poster`, and non-anchor `href`; inspect inline `style` and `style` element contents.
 4. Empty references and references beginning with `#` do not identify another file. Supported data-URL prefixes are raster `image/png`, `image/jpeg`, `image/jpg`, `image/gif`, `image/webp`, `image/avif`, `font/`, `application/font`, and `application/octet-stream`, matched case-insensitively. A data URL does not cause a network request.
-5. Resolve other references using a synthetic `https://archive.invalid/<containing-path>` base. The resulting origin MUST equal that synthetic origin. Percent-decode the URL pathname once, remove its initial slash, and require a safe path that is a member of the protected original inventory. Runtime files MUST NOT supply rendering dependencies.
-6. In CSS, replace the exact escape `\200B` or `\200b` immediately before a single or double quote with U+200B for dependency analysis. Reject all remaining backslashes and any case-insensitive `image-set` followed by optional whitespace and `(`. Remove CSS comments for scanning. Resolve references found in quoted/unquoted `url(...)` and quoted `@import`.
+5. Resolve other references using a synthetic `https://archive.invalid/<containing-path>` base. The resulting origin MUST equal that synthetic origin. Percent-decode the URL pathname once, remove its initial slash, and require a safe path that is a member of the protected original inventory. Runtime files MUST NOT supply rendering dependencies, except for digest-checked font copies under Section 5.6.
+6. Only a `src` URL inside an `@font-face` rule MAY reference an external font. Its exact canonical HTTPS URL MUST be present in `content.externalFonts`. A remote font face MUST NOT contain `local(...)` substitution. All other URLs in the font-face block follow the local-resource rules; external images, arbitrary remote CSS, and remote imports remain outside this integrity profile.
+7. In CSS, replace the exact escape `\200B` or `\200b` immediately before a single or double quote with U+200B for dependency analysis. Reject all remaining backslashes and any case-insensitive `image-set` followed by optional whitespace and `(`. Remove CSS comments for scanning. Resolve references found in quoted/unquoted `url(...)` and quoted `@import`.
 
-Step 6 is a deliberately restricted dependency recognizer, not a general CSS parser or a guarantee of sanitizing every browser feature. The typographic escape exception permits the existing empty-paragraph styles; it does not alter the bytes being hashed. Authors SHOULD use plain local references without query strings, URL escapes, or complex dependency constructs. Anchor `href` targets are navigation, not protected rendering dependencies; their existence or destination is not authenticated beyond the anchor's stored bytes.
+Step 7 is a deliberately restricted dependency recognizer, not a general CSS parser or a guarantee of sanitizing every browser feature. The typographic escape exception permits the existing empty-paragraph styles; it does not alter the bytes being hashed. Authors SHOULD use plain local references without query strings, URL escapes, or complex dependency constructs. Anchor `href` targets are navigation, not protected rendering dependencies; their existence or destination is not authenticated beyond the anchor's stored bytes.
 
 External images may be offered through a consent prompt during unsigned display. That viewer capability does not make an external dependency conform to this integrity profile. No signing request uploads an archive to compensate for an unsupported rendering dependency.
+
+### 5.6. External fonts and reader permissions
+
+Fonts are represented using standard CSS `@font-face` declarations. The optional
+protected `content.externalFonts` object maps exact canonical HTTPS font URLs to
+canonical base64url SHA-256 digests of the downloaded bytes. It has at most 64
+members. URLs are at most 2,048 characters, with no credentials, fragment,
+whitespace, backslash, braces, semicolon, quote, or angle bracket. Parsing with
+an ECMAScript URL parser and serializing MUST preserve the exact URL. Query
+strings are permitted. Families, weights, styles, variable ranges, and Unicode
+ranges remain in CSS. Local fonts remain supported independently. The editor
+preserves their declarations and copies their font bytes into safe digest-derived
+asset paths when exporting edited content.
+
+A producer MUST resolve font stylesheets to font-only declarations before
+creating a manifest or signing: fetch approved stylesheets, retain supported
+`@font-face` descriptors and direct font URLs, discard other rules and remote
+import chains, resolve font URLs against their stylesheet URL, remove `local()`
+substitution from remote faces, and inventory every remote font's actual bytes.
+Original HTML/CSS changes are hashed normally. An unsigned manifestless reader
+MAY perform this expansion for display without rewriting the supplied archive.
+An already signed scope MUST NOT be silently rewritten or re-inventoried.
+
+Network permission belongs to the reader, never to the document. The reference
+viewer has a frontend allow-list for exact HTTPS origins: Google font CSS at
+`fonts.googleapis.com/css` and `/css2`, Google files at `fonts.gstatic.com/s/`,
+Bunny Fonts at `fonts.bunny.net`, and Fontsource at `cdn.jsdelivr.net/fontsource/css/`
+and `/fontsource/fonts/`. These permissions cover font files and font-only CSS.
+Other URLs require a grouped origin prompt with allow-for-this-document,
+always-allow-this-origin, or refuse choices. Remembered overrides are local to
+the browser; an explicit block takes precedence over defaults and prior allows.
+Settings let the reader reset, allow, or block an origin, including defaults.
+Subdomains and unrelated CDN paths are not implicitly trusted. Every stylesheet
+and every referenced font origin is checked independently. Redirects are rejected
+before following them; automatic trust MUST NOT extend through a redirect.
+
+The reference viewer uses credential-free CORS requests with no referrer and a
+10-second request timeout. It supports WOFF2, WOFF, TrueType, and OpenType files,
+limits each font to 10,000,000 bytes and each stylesheet to 1,000,000 bytes, and
+bounds fetched resources to 30,000,000 bytes per operation and 64 stylesheets, with at most 256 font-face declarations.
+Only font declarations are retained from fetched CSS. Font data MUST match its
+protected digest before use. The viewer explicitly loads each font before
+pagination, uses document-specific family aliases to isolate its UI, and reports
+refused, unavailable, undecodable, or mismatching fonts separately. A fallback
+font permits reading, with an explicit indication that layout may differ.
+Availability is not a cryptographic signature result. Online or cached bytes
+MUST NOT be considered verified solely because the origin is allowed.
+
+Optional archive copies use `wdoc-font-cache/<digest>`, with the exact canonical
+base64url digest as the filename and the original font bytes as the content.
+This namespace is runtime data excluded from the original inventory. A reader
+MUST verify a copy against the requested protected digest before using it; a
+verified embedded copy requires no network permission. The same rule applies to
+browser caches. Export can include current and historical font copies without
+changing protected HTML/CSS, manifests, or existing content/form signatures.
+Adding copies changes a whole-archive snapshot and can obsolete an existing seal;
+a new seal can cover the enriched archive. Base archive count/size limits apply.
+
+Saving editable drafts MAY retain a manifestless archive when font preparation is
+refused or unavailable, so draft persistence does not require network consent.
+
+Offline verifiers and the standalone validator MUST NOT fetch document-selected
+fonts. They verify the protected declarations and any embedded copy hashes, and
+report absent font bytes as not checked, separately from signature validity.
+Invalid embedded cache paths or digest mismatches are resource errors. A signature
+authenticates the expected font fingerprint; it does not prove remote availability,
+font decoding safety, identical metrics, or identical pixels across browsers.
+
+This alpha feature is part of manifest `0.1`. The external font inventory is in
+`content` and therefore participates in the protected-scope digest, archived
+revision scopes, and dependent commitments. SHA-256, ES256, and the three `v1`
+commitment domains are unchanged. Absent `externalFonts` retains the local-only
+resource behavior. No historical profile or migration mechanism is introduced.
 
 ## 6. Manifest
 
 ### 6.1. Top-level object
 
-`manifest.json` is OPTIONAL. If absent, the document is unsigned and no manifest version is inferred. If present, it MUST contain one complete version-1.0 JSON object with this structure:
+`manifest.json` is OPTIONAL. If absent, the document is unsigned and no manifest version is inferred. If present, it MUST contain one complete version-0.1 JSON object with this structure:
 
 ```text
 {
-  manifestVersion: "1.0",
+  manifestVersion: "0.1",
   meta: Meta,
   content: Content,
   runtime: Runtime,
@@ -382,7 +462,7 @@ The saver MUST calculate fallback `N` from the position among all forms, matchin
 
 `runtime.forms`, when present, maps section names to objects containing exactly `{hashAlgorithm:"SHA-256", files:Inventory(draftFiles)}`. All inventory paths MUST be safe paths under `wdoc-form/`; hashes use the same canonical base64url SHA-256 encoding as original files. The editor writes one section named `default`. These inventories are optional descriptive draft metadata, not signed snapshots or an additional original digest.
 
-Neither draft files nor these runtime inventories are protected by an original signature. Under manifest 1.0, editing drafts can preserve every original/form signature but invalidate existing seals. A reader MUST NOT display draft values as signed answers merely because a signed submission exists for that form. Signed answers must be read from the immutable submission paths.
+Neither draft files nor these runtime inventories are protected by an original signature. Under manifest 0.1, editing drafts can preserve every original/form signature but invalidate existing seals. A reader MUST NOT display draft values as signed answers merely because a signed submission exists for that form. Signed answers must be read from the immutable submission paths.
 
 ## 9. Immutable form submissions
 
@@ -436,7 +516,7 @@ Each member of `runtime.revisions` has exactly:
 
 ```text
 {
-  scope: {manifestVersion:"1.0", meta:Meta, content:Content},
+  scope: {manifestVersion:"0.1", meta:Meta, content:Content},
   files: {<originalPath>:<archivedPath>, ...},
   signatures: DocumentSignature[]
 }
@@ -639,7 +719,7 @@ This is a snapshot seal, not proof that the snapshot is globally latest. Deletin
 
 1. Assemble root `index.html` and all original assets locally.
 2. Check container/path restrictions and the static dependency profile.
-3. Construct `meta`, inventory all originals, and create `manifestVersion:"1.0"` with empty submission/revision/signature structures.
+3. Construct `meta`, inventory all originals, and create `manifestVersion:"0.1"` with empty submission/revision/signature structures.
 4. Serialize `manifest.json` and generate the ZIP. The editor may pretty-print it; a signature workflow may use JCS.
 5. An original signature is optional. If requested, prepare its commitment locally, obtain explicit consent, request an attestation, verify the returned JWS and claims, and atomically insert the wrapper plus nonce.
 
@@ -667,7 +747,7 @@ There is no global server version counter or automatic merge of independent docu
 A verifier MUST perform the following logical checks. Independent checks may run concurrently, but later trust decisions depend on the stated bindings:
 
 1. Validate the ZIP container, original names, entry count, paths, and expanded-size policy. Do not render yet.
-2. Resolve the logical document root under Section 4.4 and validate entry-point UTF-8. If no logical-root manifest exists, report an unsigned archive without inventing a document digest or claiming verified files; do not interpret other files as authenticated signatures. If a manifest exists, read its actual bytes, parse JSON without duplicate keys, and require manifest version `1.0`. Validate required structures and semantic path/ID constraints; distinguish a malformed archive from a signature failure.
+2. Resolve the logical document root under Section 4.4 and validate entry-point UTF-8. If no logical-root manifest exists, report an unsigned archive without inventing a document digest or claiming verified files; do not interpret other files as authenticated signatures. If a manifest exists, read its actual bytes, parse JSON without duplicate keys, and require manifest version `0.1`. Validate required structures and semantic path/ID constraints; distinguish a malformed archive from a signature failure.
 3. Compute the current protected scope digest. Verify exact original membership, hashes, and static dependencies.
 4. Verify each current document JWS under its expected kind and registry policy; verify its nonce/commitment binding; combine with original integrity.
 5. Reconstruct each historical original map at its exact digest-based path. Verify its scope, files, dependencies, and individual original signatures.
@@ -725,13 +805,19 @@ A producer MAY write only `index.html` and add optional features later. Before p
 
 ## 19. Versioning and extensions
 
-`manifestVersion` is the exact string `"1.0"`. `appVersion`, `docVersion`, editorial specification revision, local memory version, request UUIDs, and commitment-domain versions are distinct concepts and MUST NOT be interchanged.
+`manifestVersion` is the exact string `"0.1"`. `appVersion`, `docVersion`, editorial specification revision, local memory version, request UUIDs, and commitment-domain versions are distinct concepts and MUST NOT be interchanged.
+
+The alpha version does not imply a stable compatibility contract. Changing
+`manifestVersion` changes the protected scope digest and all dependent document,
+form, revision, and seal proofs. Producers and published test vectors MUST use
+the current version consistently. SHA-256, ES256, and the `v1` commitment domains
+are unchanged by this version designation.
 
 `meta`, `content`, and `runtime` permit extension JSON members. Unknown protected members remain in JCS hashing. Unknown runtime members provide no authenticated semantics unless included in another explicitly defined commitment. Closed payloads, wrappers, and the signing API MUST NOT gain extra fields without an updated specification/schema and compatibility decision. This version has no critical-extension negotiation mechanism.
 
-`proofMode` MUST be exactly `"digest-only"` in every signature payload. A present manifest MUST declare `manifestVersion:"1.0"` and all required structures. Missing versions, another version, missing wrapper nonces, inventory-bearing payloads, and partial manifest objects MUST be rejected. Readers MUST NOT construct a replacement manifest when an invalid manifest file is present. A completely absent manifest is valid under the base document profile in Sections 1 and 4.
+`proofMode` MUST be exactly `"digest-only"` in every signature payload. A present manifest MUST declare `manifestVersion:"0.1"` and all required structures. Missing versions, another version, missing wrapper nonces, inventory-bearing payloads, and partial manifest objects MUST be rejected. Readers MUST NOT construct a replacement manifest when an invalid manifest file is present. A completely absent manifest is valid under the base document profile in Sections 1 and 4.
 
-This alpha specification defines the current format directly, without earlier profiles, migration procedures, or an editorial revision history. The current manifest version is `1.0`, the cryptographic algorithms are SHA-256 and ES256, and commitment domains are the three `v1` strings in Section 12.
+This alpha specification defines the current format directly, without earlier profiles, migration procedures, or an editorial revision history. The current manifest version is `0.1`, the cryptographic algorithms are SHA-256 and ES256, and commitment domains are the three `v1` strings in Section 12.
 A change to protected-scope extraction, hashing, path classification, snapshot membership, a commitment's JSON value, or a domain separator is a format change even if the TypeScript types do not change. Such changes require a deliberate version/profile/domain decision and new vectors. Every format change MUST update this directory, affected schemas and vectors in the same change, as required by [AGENTS.md](../AGENTS.md).
 
 ## 20. Security considerations
@@ -793,3 +879,89 @@ This project specification creates no IANA registrations. `.wdoc` is the project
 The [vector catalog](vectors/README.md) defines exact file encodings, canonical scopes, digests, commitment preimages, signed payloads, public test keys, and complete archive verification cases. Positive vectors include a document, form snapshot, seal, personal co-signature, and historical revision binding. Negative cases include modified bytes, missing files/nonces, invalid JSON, unsafe ZIP paths, unavailable/revoked keys, changed manifests, and altered commitments.
 
 Test keys/nonces and example account labels are public test data. They MUST NOT be used in production. Vector manifests are intentionally minimal: optional editor metadata is unnecessary for interoperability. The vectors' expected outcomes are part of the current format's conformance baseline; changes require corresponding specification, schema, and implementation updates.
+
+
+## 20. Embedded local version history
+
+The optional `.git/` namespace contains a local Git object database and references.
+This alpha design remains manifest version `0.1`; Git object identifiers use Git's
+SHA-1 addressing exclusively as version identifiers. They do not replace wdoc's
+SHA-256 inventories, ES256 attestations, or any `v1` commitment domains.
+Documents without history remain valid. A file named `.git` without a following
+slash is ordinary original content and receives no history budget exemption.
+
+### 20.1 Content and proof boundaries
+
+Git snapshots track unpacked document files, including exact `manifest.json`,
+signature wrappers, original resources, submissions and historical revision files.
+Trees MUST exclude `.git/` and `seals/`; these exclusions avoid recursive history
+and seal commitments. Git snapshots MUST contain only regular non-executable files
+(mode `100644`) and directories (`040000`), with safe document-relative paths.
+Symlinks, submodules, executable entries and executable hooks MUST NOT be used.
+Readers MUST NOT execute repository configuration or hooks, access remotes, or use
+repository paths to access host files. Network synchronization is not implemented.
+
+`.git/` is runtime material and MUST NOT occur in `content.files`. Updating it does
+not modify original document or form signatures. A whole-archive seal includes
+`.git/` as supplied; any later Git change can make that seal `archive-changed`.
+Finalize history before creating a seal, and do not commit after adding that seal.
+Old exact content proofs remain attached to their original snapshots. A restore
+or merge creates an unsigned draft/current content revision; signatures MUST NOT
+be transferred to changed content. Imported document IDs and proofs remain in the
+imported Git snapshots, rather than being rewritten into another document's
+historical-scope array. Seals remain outside snapshots and are verified against
+the supplied complete archive, never against a reconstructed Git tree.
+
+Git commits in this profile are not signed. Names, dates, messages and object IDs
+MUST NOT be presented as authenticated identities, trusted timestamps or evidence
+of a complete, tamper-proof audit trail. Cryptographic proof validity and trust
+remain independently verifiable using the existing wdoc signature profile.
+
+### 20.2 Branches and saving
+
+`HEAD` references `refs/heads/main`. The first edit initializes a main commit of
+the initial document when no history exists. Each editor session uses a distinct
+`tmp/<session-id>` branch. Best-effort autosaves every 30 seconds commit changed
+draft files only; they retain the published main document at the archive root.
+A linked writable local file receives these Git updates without a picker. When
+access is unavailable or no local file is linked, the browser retains a recovery
+draft and manual save exports the archive.
+
+Manual save flushes the latest draft and creates a merge commit whose parents
+include the previous main and the draft tip. Autosave commits are retained, never
+squashed. An explicit imported-version merge also includes the imported tip as a
+parent. Restoring an old version creates a new draft, not a main reset. Only a
+successful completed file write clears the dirty state. Writers MUST serialize
+operations per document where browser locks are available, check the linked
+file's last known modification metadata and refuse to overwrite external changes.
+
+### 20.3 Limits and retention
+
+The transport limits in Section 4 apply before ZIP decoding. Git readers additionally
+MUST bound decoded Git objects to 100,000,000 bytes and 10,000 objects, including
+pack and delta decoding. Individual decoded objects are limited to 30,000,128 bytes,
+tree nesting and delta chains to 64 levels; individual non-object Git metadata files to 1,000,000 bytes. Validate object sizes and hashes before
+use. The reference implementation accepts loose objects and version 2/3 packs,
+including bounded offset/reference deltas, and compacts larger exported databases
+into indexed packs without rewriting commit IDs. It does not consume host alternates.
+
+Remove abandoned tmp refs older than 30 days and objects unreachable from retained
+refs. Never remove ancestors reachable from main. Retained imported refs preserve
+independent imported versions. Saturation pauses history persistence and retains
+the browser draft; it MUST NOT silently delete main history to make room.
+Invalid/unsupported Git data is an optional-feature diagnostic, independent of
+original-content or signature validity. Readers may still inspect the document.
+The standalone validator and offline verifier report structural history diagnostics;
+they do not establish graph completeness or authenticate commit metadata.
+
+### 20.4 Visual merge
+
+For related documents, find a common Git ancestor and merge independent file and
+visual-block edits. Ambiguous layout/style/structural edits and conflicts on
+forms, tables or binary resources require an explicit whole-version choice.
+Without a common ancestor, require manual comparison. The editor displays inert,
+sanitized previews of both versions and the result; simple conflicting text blocks
+can be edited visually. Do not export conflict markers. Rebuild the current
+manifest, resource hashes and unsigned revision using the resolved content; do not
+line-merge cryptographic JSON. Imported proofs remain inspectable in their original
+Git versions. External previews must not perform network requests or execute scripts.

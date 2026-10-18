@@ -28,7 +28,7 @@ test('signs originals, freezes reviewed answers and seals a portable archive wit
   });
   const html = '<!doctype html><html><head><title>Signature test</title></head><body><wdoc-page><wdoc-content><form id="contract"><label>Name <input name="fullName" required></label></form></wdoc-content></wdoc-page></body></html>';
   const now = new Date().toISOString(); const docId = crypto.randomUUID();
-  const manifest = { manifestVersion: '1.0', meta: { docId, appVersion: 'test', createdAt: now, contentUpdatedAt: now }, content: { hashAlgorithm: 'SHA-256', files: await inventory({ 'index.html': encoder.encode(html) }) }, runtime: { submissions: {}, revisions: [], forms: {} }, signatures: { document: [], forms: [] } };
+  const manifest = { manifestVersion: '0.1', meta: { docId, appVersion: 'test', createdAt: now, contentUpdatedAt: now }, content: { hashAlgorithm: 'SHA-256', files: await inventory({ 'index.html': encoder.encode(html) }) }, runtime: { submissions: {}, revisions: [], forms: {} }, signatures: { document: [], forms: [] } };
   const zip = new JSZip(); zip.file('index.html', html); zip.file('manifest.json', jcs(manifest));
   await page.goto('/');
   await page.locator('app-navbar input[type=file]').setInputFiles({ name: 'contract.wdoc', mimeType: 'application/zip', buffer: await zip.generateAsync({ type: 'nodebuffer' }) });
@@ -40,7 +40,7 @@ test('signs originals, freezes reviewed answers and seals a portable archive wit
   await panel.getByRole('button', { name: 'Review current answers for a new signed snapshot' }).click();
   await expect(panel.getByLabel('Exact answer snapshot')).toContainText('Alice exact answers');
   await expect(panel.getByRole('button', { name: 'Confirm and sign snapshot' })).toBeDisabled();
-  await panel.getByRole('checkbox').check();
+  await panel.getByRole('checkbox', { name: /I have reviewed these exact answers/ }).check();
   await panel.getByRole('button', { name: 'Confirm and sign snapshot' }).click();
   await expect(panel.getByText('Verified signature · trusted key', { exact: true })).toHaveCount(2);
   await panel.getByRole('button', { name: 'Seal complete archive', exact: true }).click();
@@ -66,7 +66,7 @@ test('signs originals, freezes reviewed answers and seals a portable archive wit
     await otherPanel.getByRole('button', { name: /Signatures ·/ }).click();
     await otherPanel.getByRole('button', { name: 'Co-sign this snapshot', exact: true }).click();
     await expect(otherPanel.getByLabel('Exact answer snapshot')).toContainText('Alice exact answers');
-    await otherPanel.getByRole('checkbox').check(); await otherPanel.getByRole('button', { name: 'Confirm and sign snapshot' }).click();
+    await otherPanel.getByRole('checkbox', { name: /I have reviewed these exact answers/ }).check(); await otherPanel.getByRole('button', { name: 'Confirm and sign snapshot' }).click();
     await expect(otherPanel.getByText('Verified signature · trusted key', { exact: true })).toHaveCount(3);
     await expect(otherPanel.getByText('Archive changed since this seal', { exact: true })).toHaveCount(1);
   } finally { await peer.close(); }

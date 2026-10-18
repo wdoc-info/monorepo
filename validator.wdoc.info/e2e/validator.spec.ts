@@ -26,7 +26,7 @@ async function vectorBuffer(id: string, prefix = '') {
 }
 async function signedFixture() {
     const files = { 'index.html': encoder.encode('<!doctype html><html><head><meta charset="utf-8"><title>Private title</title></head><body><p>CONFIDENTIAL DOCUMENT CONTENT</p></body></html>') };
-    const manifest: Manifest = { manifestVersion: '1.0', meta: { docId: crypto.randomUUID(), appVersion: 'test', createdAt: new Date().toISOString(), contentUpdatedAt: new Date().toISOString() }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { submissions: {}, revisions: [] }, signatures: { document: [], forms: [] } };
+    const manifest: Manifest = { manifestVersion: '0.1', meta: { docId: crypto.randomUUID(), appVersion: 'test', createdAt: new Date().toISOString(), contentUpdatedAt: new Date().toISOString() }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { submissions: {}, revisions: [] }, signatures: { document: [], forms: [] } };
     const pair = await generateKeyPair('ES256', { extractable: true }), kid = 'https://sig.wdoc.info/info/browser-test', nonce = newNonce();
     const payload = { type: 'wdoc-document-signature', proofMode: 'digest-only', documentCommitment: await commitment('document', await documentDigest(manifest), nonce), signer: { userId: 'alice', displayName: 'alice@example.test' }, signedAt: new Date().toISOString(), evidence: { scope: 'commitment-only', method: 'authenticated-session', consent: 'wdoc-sign-v1' } };
     const jws = await new CompactSign(encoder.encode(jcs(payload))).setProtectedHeader({ alg: 'ES256', typ: 'wdoc-document+jws', kid }).sign(pair.privateKey);

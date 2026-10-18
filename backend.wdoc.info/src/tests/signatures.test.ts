@@ -29,7 +29,7 @@ async function fixture() {
   };
   const files: Files = { 'index.html': encoder.encode(`<form id="private-form">${sentinel}</form>`), 'private-title.css': encoder.encode('p {color:black}') };
   const now = new Date().toISOString();
-  const manifest: Manifest = { manifestVersion: '1.0', meta: { docId: crypto.randomUUID(), appVersion: '1', docTitle: sentinel, createdAt: now, contentUpdatedAt: now }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { submissions: {}, revisions: [], forms: {} }, signatures: { document: [], forms: [] } };
+  const manifest: Manifest = { manifestVersion: '0.1', meta: { docId: crypto.randomUUID(), appVersion: '1', docTitle: sentinel, createdAt: now, contentUpdatedAt: now }, content: { hashAlgorithm: 'SHA-256', files: await inventory(files) }, runtime: { submissions: {}, revisions: [], forms: {} }, signatures: { document: [], forms: [] } };
   const signDocument = async () => {
     const nonce = newNonce(); const c = await commitment('document', await documentDigest(manifest), nonce);
     const response = await request('/signatures/document', { requestId: crypto.randomUUID(), consent: true, documentCommitment: c }); expect(response.status).toBe(200);

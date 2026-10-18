@@ -1,3 +1,5 @@
+import { signal } from '@angular/core';
+import { HistoryService } from '../history/history.service';
 import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { AppComponent } from './app.component';
@@ -6,6 +8,8 @@ import { HtmlProcessingService } from '../services/html-processing.service';
 import { WdocLoaderService } from '../services/wdoc-loader.service';
 import { DialogService } from '../services/dialog.service';
 import { DocumentCreatorService } from '../services/document-creator.service';
+import { FILE_SYSTEM_ACCESS, LocalFileHandle, LocalFilesService } from '../services/local-files.service';
+import { EditedArchiveService } from '../services/edited-archive.service';
 
 describe('AppComponent', () => {
   let formManager: jasmine.SpyObj<FormManagerService>;
@@ -13,11 +17,14 @@ describe('AppComponent', () => {
   let htmlProcessor: jasmine.SpyObj<HtmlProcessingService>;
   let dialogService: jasmine.SpyObj<DialogService>;
   let documentCreator: jasmine.SpyObj<DocumentCreatorService>;
+  let editedArchive: jasmine.SpyObj<EditedArchiveService>;
+  let localFiles: LocalFilesService;
 
   beforeEach(async () => {
     formManager = jasmine.createSpyObj('FormManagerService', ['saveForms']);
     wdocLoader = jasmine.createSpyObj('WdocLoaderService', [
       'fetchAndLoadWdoc',
+      'loadWdocFromArrayBuffer',
     ]);
     htmlProcessor = jasmine.createSpyObj('HtmlProcessingService', ['cleanup']);
     dialogService = jasmine.createSpyObj('DialogService', ['openAlert']);
@@ -25,17 +32,27 @@ describe('AppComponent', () => {
     documentCreator = jasmine.createSpyObj('DocumentCreatorService', [
       'downloadWdocFromHtml',
     ]);
+    editedArchive = jasmine.createSpyObj('EditedArchiveService', ['build']);
+    editedArchive.build.and.resolveTo(new Blob(['saved archive']));
+    const history = { entries: signal([]), error: signal(''), status: signal(''), recovery: signal(null),
+      restoreLastDraft: jasmine.createSpy().and.resolveTo(), reset: jasmine.createSpy(), open: jasmine.createSpy().and.resolveTo(),
+      exclusive: async (run: () => Promise<unknown>) => run(), publish: async (buffer: ArrayBuffer) => buffer,
+      failed: jasmine.createSpy().and.resolveTo(), saved: jasmine.createSpy().and.resolveTo() };
 
     await TestBed.configureTestingModule({
       imports: [HttpClientTestingModule, AppComponent],
       providers: [
+        { provide: HistoryService, useValue: history },
         { provide: FormManagerService, useValue: formManager },
         { provide: WdocLoaderService, useValue: wdocLoader },
         { provide: HtmlProcessingService, useValue: htmlProcessor },
         { provide: DialogService, useValue: dialogService },
         { provide: DocumentCreatorService, useValue: documentCreator },
+        { provide: EditedArchiveService, useValue: editedArchive },
+        { provide: FILE_SYSTEM_ACCESS, useValue: {} },
       ],
     }).compileComponents();
+    localFiles = TestBed.inject(LocalFilesService);
   });
 
   it('should create the app', () => {
@@ -170,13 +187,8 @@ describe('AppComponent', () => {
     await app.onSaveNewDocument();
 
     expect(app.isEditing).toBeTrue();
-    expect(documentCreator.downloadWdocFromHtml).toHaveBeenCalledWith(
-      jasmine.any(String),
-      '1.0.0',
-      'New document',
-      'new-document.wdoc',
-      [],
-    );
+    expect(editedArchive.build).toHaveBeenCalledWith(jasmine.objectContaining({ version: '1.0.0', title: 'New document', html: jasmine.any(String) }));
+    expect(app.originalArrayBuffer).toBeTruthy();
   });
 
   it('normalizes an empty title and marks the document dirty while editing', () => {
@@ -228,13 +240,69 @@ describe('AppComponent', () => {
     await app.onSaveNewDocument();
     await app.onSaveNewDocument();
 
-    expect(documentCreator.downloadWdocFromHtml).toHaveBeenCalledWith(
-      jasmine.any(String),
-      '2.0.0',
-      'New document',
-      'new-document.wdoc',
-      [],
-    );
+    expect(editedArchive.build).toHaveBeenCalledWith(jasmine.objectContaining({ version: '2.0.0', title: 'New document' }));
+  });
+
+  const localHandle = (): LocalFileHandle => ({ kind: 'file', name: 'report.wdoc',
+    getFile: async () => new File(['original'], 'report.wdoc', { lastModified: 1 }),
+    queryPermission: async () => 'granted', requestPermission: async () => 'granted',
+    createWritable: async () => ({ write: async () => {}, close: async () => {}, abort: async () => {} }),
+  });
+
+  it('saves a linked file directly and clears dirty state only after the write completes', async () => {
+    const app = TestBed.createComponent(AppComponent).componentInstance;
+    app.startNewDocument(); app.onEditorContentChange('<p>Local edits</p>');
+    const handle = localHandle(); localFiles.attach(handle, await handle.getFile());
+    let finish!: (file: File) => void;
+    const write = spyOn(localFiles, 'write').and.returnValue(new Promise(resolve => finish = resolve));
+    const saving = app.onSaveNewDocument();
+    for (let n = 0; n < 20 && !write.calls.count(); n++) await new Promise(resolve => setTimeout(resolve, 5));
+    expect(write).toHaveBeenCalled(); expect(app.savingDocument).toBeTrue(); expect(app.showDocumentSave).toBeTrue();
+    await app.onSaveNewDocument(); expect(write).toHaveBeenCalledTimes(1);
+    finish(new File(['saved archive'], 'report.wdoc', { lastModified: 2 })); await saving;
+    expect(app.savingDocument).toBeFalse(); expect(app.showDocumentSave).toBeFalse();
+    expect(localFiles.activeFile()?.lastModified).toBe(2);
+    expect(documentCreator.downloadWdocFromHtml).not.toHaveBeenCalled();
+  });
+
+  it('keeps newer editor changes dirty while committing an earlier save', async () => {
+    const app = TestBed.createComponent(AppComponent).componentInstance;
+    app.startNewDocument(); const handle = localHandle(); localFiles.attach(handle, await handle.getFile());
+    let finish!: (file: File) => void;
+    spyOn(localFiles, 'write').and.returnValue(new Promise(resolve => finish = resolve));
+    const saving = app.onSaveNewDocument(); await new Promise(resolve => setTimeout(resolve, 0));
+    app.onEditorContentChange('<p>Newer changes</p>');
+    finish(new File(['saved archive'], 'report.wdoc', { lastModified: 2 })); await saving;
+    expect(app.showDocumentSave).toBeTrue(); expect(app.editorContent).toContain('Newer changes');
+  });
+
+  it('keeps the original file link and unsaved changes when writing fails', async () => {
+    const app = TestBed.createComponent(AppComponent).componentInstance;
+    app.startNewDocument(); const handle = localHandle(); localFiles.attach(handle, await handle.getFile());
+    const baseline = localFiles.activeFile(); spyOn(localFiles, 'write').and.rejectWith(new Error('Disk full'));
+    await app.onSaveNewDocument();
+    expect(app.showDocumentSave).toBeTrue(); expect(app.saveError).toContain('Disk full');
+    expect(localFiles.activeFile()).toBe(baseline); expect(app.savingDocument).toBeFalse();
+    expect(documentCreator.downloadWdocFromHtml).not.toHaveBeenCalled();
+  });
+
+  it('retains the draft without an error when a Save as picker is cancelled', async () => {
+    const app = TestBed.createComponent(AppComponent).componentInstance; app.startNewDocument();
+    spyOn(localFiles, 'prepareSave').and.rejectWith(new DOMException('Cancelled', 'AbortError'));
+    await app.onSaveNewDocument(true);
+    expect(app.showDocumentSave).toBeTrue(); expect(app.saveError).toBe(''); expect(app.savingDocument).toBeFalse();
+    expect(editedArchive.build).not.toHaveBeenCalled();
+  });
+
+  it('links a local handle only after a document loads successfully and clears it for a new document', async () => {
+    const app = TestBed.createComponent(AppComponent).componentInstance;
+    const previous = localHandle(); localFiles.attach(previous, await previous.getFile());
+    const incoming = { ...localHandle(), name: 'incoming.wdoc' };
+    wdocLoader.loadWdocFromArrayBuffer.and.resolveTo(null);
+    await app.openLocalFile(incoming); expect(localFiles.activeFile()?.handle).toBe(previous);
+    wdocLoader.loadWdocFromArrayBuffer.and.resolveTo({ html: '<p>Incoming</p>', documentTitle: 'Incoming', originalArrayBuffer: new ArrayBuffer(0), attachments: [], formAnswers: [] });
+    await app.openLocalFile(incoming); expect(localFiles.activeFile()?.handle).toBe(incoming);
+    app.startNewDocument(); expect(localFiles.activeFile()).toBeNull();
   });
 
   it('handles dragenter/leave to toggle overlay depth', () => {
